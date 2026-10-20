@@ -45,15 +45,21 @@ def clean_column_name(name: str) -> str:
     return re.sub(r"[^0-9a-z]+", "_", name.strip().lower()).strip("_")
 
 
+def normalize_columns(df: pd.DataFrame, source: str = "frame") -> pd.DataFrame:
+    """Normalise column names in place of the file reader, rejecting collisions."""
+    out = df.copy()
+    out.columns = pd.Index([clean_column_name(str(c)) for c in out.columns])
+    if out.columns.duplicated().any():
+        dupes = sorted(set(out.columns[out.columns.duplicated()]))
+        raise ValueError(f"{source}: duplicate columns after normalisation: {dupes}")
+    return out
+
+
 def read_csv_file(path: Path) -> pd.DataFrame:
     # CICIDS2017 CSVs are not valid UTF-8 (web-attack labels contain a Windows-1252 dash);
     # latin-1 decodes every byte, and label normalisation absorbs the artefact.
     df = pd.read_csv(path, encoding="latin-1", low_memory=False, skipinitialspace=True)
-    df.columns = pd.Index([clean_column_name(str(c)) for c in df.columns])
-    if df.columns.duplicated().any():
-        dupes = sorted(set(df.columns[df.columns.duplicated()]))
-        raise ValueError(f"{path.name}: duplicate columns after normalisation: {dupes}")
-    return df
+    return normalize_columns(df, path.name)
 
 
 def _parse_timestamps(

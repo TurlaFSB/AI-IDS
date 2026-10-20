@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>AI-IDS Console</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="/static/dashboard.css">
+</head>
+<body>
+  <header>
+    <h1>AI-IDS</h1>
+    <span id="model" class="muted"></span>
+    <span id="status" class="pill" role="status" aria-live="polite">connecting</span>
+  </header>
+  <main>
+    <section class="tiles" aria-label="Summary">
+      <div class="tile"><span class="label">Flows scored</span><span class="value" id="flows">0</span></div>
+      <div class="tile"><span class="label">Alerts raised</span><span class="value" id="alerts-total">0</span></div>
+      <div class="tile"><span class="label">Alerts, last minute</span><span class="value" id="alerts-minute">0</span></div>
+      <div class="tile"><span class="label">Request latency p50 / p95</span><span class="value" id="latency">n/a</span></div>
+    </section>
+    <section class="card">
+      <h2>Flows and alerts, last 10 minutes (5-second buckets)</h2>
+      <canvas id="chart" width="960" height="220" role="img" aria-label="Flows and alerts over the last ten minutes"></canvas>
+      <p class="legend"><span class="swatch flows"></span> flows <span class="swatch alerts"></span> alerts</p>
+    </section>
+    <section class="card">
+      <h2>Latest alerts</h2>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>Time (UTC)</th><th>Source</th><th>Destination</th><th>Port</th><th>Score</th><th>Category</th><th>ATT&amp;CK</th></tr></thead>
+          <tbody id="alert-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <dialog id="login">
+    <form method="dialog" id="login-form">
+      <h2>Read key</h2>
+      <p class="muted">Enter the read-only key for this service. It is kept for this browser tab only.</p>
+      <input id="key" type="password" autocomplete="off" aria-label="Read key" required>
+      <button type="submit">Connect</button>
+    </form>
+  </dialog>
+  <script src="/static/dashboard.js"></script>
+</body>
+</html>

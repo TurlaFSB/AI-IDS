@@ -60,3 +60,14 @@ def resolve(raw: str) -> AttackInfo:
 
 def categories() -> list[str]:
     return sorted({info.category for info in _TAXONOMY.values()})
+
+
+def techniques_for_category(category: str) -> list[str]:
+    """MITRE ATT&CK technique IDs associated with an attack category (empty for benign)."""
+    return sorted(
+        {
+            info.technique
+            for info in _TAXONOMY.values()
+            if info.category == category and info.technique is not None
+        }
+    )

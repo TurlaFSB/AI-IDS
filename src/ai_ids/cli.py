@@ -5,18 +5,26 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import secrets
 import sys
 from collections.abc import Sequence
 from pathlib import Path
 
+import pandas as pd
+
 from ai_ids import __version__
 from ai_ids.config import TrainConfig
 from ai_ids.data.integrity import dataset_checksums
+from ai_ids.data.loader import TIMESTAMP, clean_flows, feature_columns, normalize_columns
+from ai_ids.data.split import chronological_split
 from ai_ids.data.synthetic import generate_flows
 from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.evaluation.seeds import run_seed_study
 from ai_ids.logging_config import configure_logging
 from ai_ids.pipeline import prepare_data, run_analysis, run_training
+from ai_ids.service.replay import ReplaySummary, replay_flows
+from ai_ids.service.server import build_app, serve
+from ai_ids.service.settings import ServiceSettings, SettingsError
 
 HMAC_KEY_ENV = "AI_IDS_MODEL_HMAC_KEY"
 
@@ -58,9 +66,70 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--out", type=Path, required=True, help="output JSON file")
     analyze.add_argument("--config", type=Path, help="YAML experiment config used for training")
 
+    serve_cmd = sub.add_parser("serve", help="run the scoring service and dashboard")
+    serve_cmd.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
+    serve_cmd.add_argument("--host", default="127.0.0.1")
+    serve_cmd.add_argument("--port", type=int, default=8080)
+    serve_cmd.add_argument(
+        "--allow-remote",
+        action="store_true",
+        help="allow binding beyond loopback (only behind a TLS-terminating proxy)",
+    )
+    serve_cmd.add_argument(
+        "--demo", action="store_true", help="generate throwaway keys and print how to use them"
+    )
+
+    replay_cmd = sub.add_parser("replay", help="replay recorded flows into a running service")
+    replay_source = replay_cmd.add_mutually_exclusive_group(required=True)
+    replay_source.add_argument("--data", type=Path, help="CSV file or directory")
+    replay_source.add_argument("--synthetic", action="store_true", help="use synthetic flows")
+    replay_cmd.add_argument("--config", type=Path, help="YAML experiment config used for training")
+    replay_cmd.add_argument("--url", default="http://127.0.0.1:8080")
+    replay_cmd.add_argument("--speed", type=float, default=120.0, help="time compression factor")
+    replay_cmd.add_argument(
+        "--rate", type=float, help="send at a steady N flows per second instead of capture timing"
+    )
+    replay_cmd.add_argument("--batch-size", type=int, default=50)
+    replay_cmd.add_argument("--start", help="only flows at or after this timestamp")
+    replay_cmd.add_argument("--minutes", type=float, help="only this many minutes from --start")
+    replay_cmd.add_argument("--limit", type=int, help="stop after this many flows")
+
     checksum = sub.add_parser("checksum", help="print SHA-256 digests of dataset files")
     checksum.add_argument("path", type=Path)
     return parser
+
+
+def _print_progress(summary: ReplaySummary) -> None:
+    print(
+        f"\rflows={summary.flows_sent} alerts={summary.alerts} "
+        f"tp={summary.true_positives} fp={summary.false_positives}",
+        end="",
+        flush=True,
+    )
+
+
+def _replay_frame(args: argparse.Namespace, config: TrainConfig) -> tuple[pd.DataFrame, list[str]]:
+    """The flows to replay: the held-out test split of real data, or of synthetic data."""
+    if args.synthetic:
+        cleaned, _ = clean_flows(normalize_columns(generate_flows(20_000, config.seed)))
+        split = chronological_split(cleaned, config.split_fractions)
+        features = feature_columns(cleaned)
+    else:
+        split, features, _ = prepare_data(args.data, config)
+    # The split is stored grouped by class; select in capture-time order so filters and limits
+    # describe real time windows instead of whichever class happens to come first.
+    frame = split.test.sort_values(TIMESTAMP, kind="stable")
+    if args.start:
+        frame = frame[frame[TIMESTAMP] >= pd.Timestamp(args.start)]
+        if args.minutes:
+            frame = frame[
+                frame[TIMESTAMP] < pd.Timestamp(args.start) + pd.Timedelta(minutes=args.minutes)
+            ]
+    if args.limit:
+        frame = frame.head(args.limit)
+    if frame.empty:
+        raise SystemExit("no flows selected for replay")
+    return frame, features
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -110,6 +179,50 @@ def main(argv: Sequence[str] | None = None) -> int:
                 for key in ("recall", "false_positive_rate", "precision")
             )
             print(f"{name}: {parts} (n={len(args.seeds)})")
+        return 0
+
+    if args.command == "serve":
+        try:
+            if args.demo:
+                settings = ServiceSettings(
+                    api_key=secrets.token_urlsafe(24), read_key=secrets.token_urlsafe(24)
+                )
+            else:
+                settings = ServiceSettings.from_env()
+        except SettingsError as error:
+            print(f"configuration error: {error}", file=sys.stderr)
+            return 2
+        key = os.environ.get(HMAC_KEY_ENV)
+        app = build_app(args.model_dir, settings, hmac_key=key.encode() if key else None)
+        if args.demo:
+            print("Demo keys (local use only; they change on every start):")
+            print(f"  dashboard: http://{args.host}:{args.port}/#key={settings.read_key}")
+            print(f"  replay:    AI_IDS_API_KEY={settings.api_key} ai-ids replay --synthetic ...")
+        serve(app, args.host, args.port, allow_remote=args.allow_remote)
+        return 0
+
+    if args.command == "replay":
+        api_key = os.environ.get("AI_IDS_API_KEY")
+        if not api_key:
+            print(
+                "configuration error: set AI_IDS_API_KEY to the service's score key",
+                file=sys.stderr,
+            )
+            return 2
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        frame, features = _replay_frame(args, config)
+        summary = replay_flows(
+            frame,
+            features,
+            base_url=args.url,
+            api_key=api_key,
+            speed=args.speed,
+            rate=args.rate,
+            batch_size=args.batch_size,
+            on_batch=_print_progress,
+        )
+        print()
+        print(json.dumps(summary.to_dict(), indent=2))
         return 0
 
     if args.command == "analyze":
