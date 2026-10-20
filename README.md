@@ -118,4 +118,4 @@ project maintainer.
 
 ## License
 
-To be decided by the project owner before the first release.
+[MIT](LICENSE)

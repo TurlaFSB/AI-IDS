@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Machine-learning network intrusion detection with adaptive retraining."
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
 dependencies = [
     "numpy>=1.26",
     "pandas>=2.2",
