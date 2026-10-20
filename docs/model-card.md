@@ -174,7 +174,30 @@ Results, Random Forest at its calibrated threshold (baseline recall 0.990):
 
 Per family at 64 bytes (baseline in brackets): port scan 0.014 (0.997), web attacks 0.076 (0.987),
 DDoS 0.585 (0.998), DoS 0.690 (0.991), brute force 0.933 (0.994), botnet 0.000 (0.000). The model
-relies on absolute packet sizes. Results for the other detectors are in `report.json`.
+relies on absolute packet sizes. Gradient boosting behaves similarly (0.868 clean; 0.466, 0.460,
+0.415 at 64, 256, 1,024 bytes) and is less robust to slowing (0.858, 0.835, 0.785 at 2x, 5x, 10x).
+
+### Evasion-aware training (ADR 0008)
+
+Standard versus augmented training, same split, calibration and evaluation
+(`configs/robustness.yaml`). Augmented models train on perturbed copies of half the attack flows,
+with magnitudes (3x, 7x slowdown; 32, 128, 512 B padding) disjoint from the evaluation ones.
+
+| Detector | Recall | FPR | Precision | Slow 2x / 5x / 10x | Pad 64 / 256 / 1,024 B | Slow 5x + pad 256 B |
+|---|---|---|---|---|---|---|
+| Random Forest | 0.990 | 0.081 | 0.713 | 0.979 / 0.965 / 0.950 | 0.513 / 0.531 / 0.508 | 0.599 |
+| Random Forest, aug | 0.992 | 0.069 | 0.744 | 0.992 / 0.991 / 0.976 | 1.000 / 1.000 / 1.000 | 1.000 |
+| Gradient boosting | 0.868 | 0.0026 | 0.985 | 0.858 / 0.835 / 0.785 | 0.466 / 0.460 / 0.415 | 0.458 |
+| Gradient boosting, aug | 0.900 | 0.031 | 0.856 | 0.892 / 0.887 / 0.876 | 0.992 / 0.941 / 0.633 | 0.877 |
+
+Interpretation, with caution. Augmentation sharply raises recall under padding, but (1) gradient
+boosting's false-positive rate rose from 0.26% to 3.1% and its PR-AUC fell from 0.988 to 0.975, a
+real cost; (2) the augmented Random Forest scoring exactly 1.000 at every padding level, even beyond
+the training range, is a warning sign that it may flag any padded flow regardless of whether it is
+an attack. The control for that is the false-positive rate on perturbed benign flows, which every
+report now includes (`benign_false_positive_rate` per perturbation), together with forward-only
+padding (what an attacker can actually control) and random per-flow forward padding, neither of
+which is used in training. Until those results are in, these numbers do not establish robustness.
 
 ## Limitations and risks
 

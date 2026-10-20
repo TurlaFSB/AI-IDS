@@ -243,11 +243,14 @@ Recall by attack category on the test split:
   of attack connections. With these two hosts excluded the false-positive rate is 0.14%; that
   figure is a sensitivity analysis, not a performance claim. A consequence: a detector that flags
   these flows is penalised by the labels, and one that ignores them looks better than it may be.
-- **Gradient boosting has the best operating behaviour.** It catches 87% of attacks at a 0.26%
-  false-positive rate (below the 1% target) with 98.5% precision, against the Random Forest's
-  99% recall at 8.1% FPR and 71% precision. Whether that gap is real or partly because it
-  ignores the mislabelled clusters is open (`ai-ids analyze` on its saved model answers it).
-  It misses Heartbleed, Infiltration and Bot entirely and catches 73% of DoS.
+- **Gradient boosting has the best operating behaviour on ordinary traffic.** It catches 87% of
+  attacks at a 0.26% false-positive rate (below the 1% target) with 98.5% precision, against the
+  Random Forest's 99% recall at 8.1% FPR and 71% precision. Its few false positives are almost all
+  from the scanning host: `192.168.10.8` accounts for 99.8% of them (2.1% of that host's benign
+  flows are flagged, against 43.9% for the Random Forest), and with that host excluded its
+  false-positive rate is 0.0007%. So it is far cleaner on ordinary benign traffic, while on the
+  attack-adjacent traffic the two models disagree and the labels cannot say which is right. It
+  misses Heartbleed, Infiltration and Bot entirely and catches 73% of DoS.
 - **The unsupervised detectors do not work well enough here.** The autoencoder ranks better than
   the Isolation Forest (PR-AUC 0.46 versus 0.35) but at 15% recall and a 7.4% false-positive rate
   it is not usable; it detects some DoS (0.24) and port scan (0.19) and little else. These are
@@ -272,6 +275,24 @@ Recall by attack category on the test split:
   pooled over flows, versus 0.99 on attacks the model was trained on. The Isolation Forest, which
   never sees attacks, does worse on every family (DDoS 0.07, DoS 0.04, port scan 0.001, the
   others 0.00). In-distribution recall mostly measures recognition of known attack tools.
+- **Evasion-aware training repairs the padding weakness in feature space, with caveats.**
+  Training on slowed and padded copies of attack flows (magnitudes different from those used in
+  evaluation; ADR 0008) changed results as follows:
+
+  | Detector | Clean recall | Clean FPR | Recall after padding every packet by 64 / 256 / 1,024 B |
+  |---|---|---|---|
+  | Random Forest | 0.990 | 0.081 | 0.513 / 0.531 / 0.508 |
+  | Random Forest, augmented | 0.992 | 0.069 | 1.000 / 1.000 / 1.000 |
+  | Gradient boosting | 0.868 | 0.0026 | 0.466 / 0.460 / 0.415 |
+  | Gradient boosting, augmented | 0.900 | 0.031 | 0.992 / 0.941 / 0.633 |
+
+  Two cautions apply. Gradient boosting paid for robustness with its false-positive rate (0.26% to
+  3.1%) and precision (98.5% to 85.6%). And a recall of exactly 1.000 at every padding level,
+  including 1,024 bytes beyond anything it trained on, suggests the augmented Random Forest may have
+  learned to flag anything padded instead of becoming robust. This is why the evasion analysis now
+  also applies each perturbation to benign flows (the false-positive rate under perturbation is the
+  control) and includes forward-only and random per-flow padding, which no detector is trained on.
+  Treat the table above as preliminary until those controls are reported.
 - **Random Forest scores are coarse.** The score is the share of trees voting "attack", so very
   low FPR targets collapse (at a 0.1% target the threshold saturates and nothing is flagged).
   A finer or calibrated score is needed for low-FPR operation.

@@ -1,6 +1,6 @@
 # 0008. Evasion-aware training by attack-flow augmentation
 
-Status: Accepted (2026-10-20); effectiveness to be established by the real-data run
+Status: Accepted (2026-10-20); first results below, controls pending
 
 ## Context
 The evasion-sensitivity analysis showed the Random Forest depends on absolute packet sizes:
@@ -28,3 +28,16 @@ copies of a random half of its attack flows, each copy slowed down or padded onc
   does not prove robustness to other or adaptive attacks, and the analysis remains feature-space.
 - Augmentation can only help against reshaping the analysis can express; adaptive attacks need
   packet-level evaluation (roadmap).
+
+## First results and controls
+
+First real run: augmentation raised recall under padding from 0.51 to 1.00 (Random Forest) and from
+0.47 to 0.99 / 0.94 / 0.63 at 64 / 256 / 1,024 bytes (gradient boosting), but gradient boosting's
+false-positive rate rose from 0.26% to 3.1%, and the Random Forest's recall of exactly 1.000 at every
+magnitude, including one beyond the training range, suggests it may flag anything padded.
+
+Controls added in response: the evasion report applies each perturbation to a sample of benign
+flows and reports the false-positive rate under perturbation; and it evaluates forward-only padding
+(the attacker-controlled direction, recomputing whole-flow statistics, validated against
+packet-level simulation in the tests) and random per-flow forward padding, neither of which is used
+in training. The decision to keep this approach depends on those results.

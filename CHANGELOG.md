@@ -7,6 +7,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- The evasion analysis now applies every perturbation to benign flows as a control, and adds
+  forward-only padding (consistent with whole-flow statistics, validated against packet-level
+  simulation) and random per-flow forward padding as perturbation types never used in training.
 - Packet-size padding in the evasion analysis is now self-consistent (totals, byte rates and
   averages move with the per-packet lengths); earlier numbers used a partial transformation and
   are superseded.
@@ -17,6 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`timestamp_dayfirst`).
 
 ### Added
+- Results of standard versus evasion-aware training, and the gradient-boosting host analysis, in the
+  README and model card (preliminary until the benign controls are reported).
 - Evasion-aware training (ADR 0008): `random_forest_aug` and `hist_gradient_boosting_aug` train on
   perturbed copies of attack flows using magnitudes disjoint from the evaluation ones;
   `configs/robustness.yaml` compares them with the standard detectors.

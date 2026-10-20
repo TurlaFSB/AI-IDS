@@ -167,7 +167,12 @@ def evaluate_detector(
     }
     if config.evasion_analysis:
         report["evasion"] = evasion_report(
-            detector, split.test[split.test[IS_ATTACK]], features, threshold
+            detector,
+            split.test[split.test[IS_ATTACK]],
+            features,
+            threshold,
+            benign=split.test[~split.test[IS_ATTACK]],
+            seed=config.seed,
         )
     if TIMESTAMP in split.test.columns:
         days = split.test[TIMESTAMP].dt.strftime("%Y-%m-%d")
