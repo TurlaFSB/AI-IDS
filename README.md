@@ -236,11 +236,7 @@ University of New Brunswick. If you use results derived from it, cite:
 > Dataset and Intrusion Traffic Characterization," *4th International Conference on Information
 > Systems Security and Privacy (ICISSP)*, 2018.
 
-## AI assistance disclosure
 
-This project is developed with the assistance of an AI coding assistant (Claude, by Anthropic).
-Architecture decisions, review, validation, and responsibility for the final code rest with the
-project maintainer.
 
 ## License
 
