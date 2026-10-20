@@ -7,6 +7,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `configs/light.yaml`: lower-memory training settings for laptops.
 - Repository documentation: architecture, threat model (STRIDE), compliance mapping,
   data governance, model card, and architecture decision records.
 - Community files: contributing guide, code of conduct, issue and pull request templates,
