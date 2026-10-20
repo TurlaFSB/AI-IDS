@@ -93,11 +93,11 @@ def generate_flows(n_rows: int = 20_000, seed: int = 42) -> pd.DataFrame:
     df = pd.concat(frames, ignore_index=True).sample(frac=1.0, random_state=seed)
     df = df.reset_index(drop=True)
 
-    # Capture window 09:00-17:00 on a single day, stored on a 12-hour clock like the source.
+    # Capture window 09:00-17:00 on a single day, on a 12-hour, day-first clock like the source.
     offsets = np.sort(rng.integers(0, 8 * 3600, len(df)))
     stamps = pd.Timestamp("2017-07-03 09:00") + pd.to_timedelta(offsets, unit="s")
     df[" Timestamp"] = [
-        f"{t.month}/{t.day}/{t.year} {t.hour % 12 or 12}:{t.minute:02d}" for t in stamps
+        f"{t.day}/{t.month}/{t.year} {t.hour % 12 or 12}:{t.minute:02d}" for t in stamps
     ]
     df.insert(0, "Flow ID", [f"10.0.0.{i % 250}-{i}" for i in range(len(df))])
     df.insert(1, " Source IP", [f"192.168.10.{i % 250 + 1}" for i in range(len(df))])

@@ -5,6 +5,7 @@ import pytest
 from ai_ids.evaluation.metrics import (
     binary_report,
     breakdown_by_group,
+    false_positive_profile,
     latency_profile,
     macro_recall,
     per_class_recall,
@@ -66,3 +67,33 @@ def test_breakdown_by_group() -> None:
     assert result["d1"]["recall"] == 1.0
     assert result["d2"]["recall"] == 0.0
     assert result["d2"]["benign"] == 1
+
+
+def test_false_positive_profile_concentration() -> None:
+    frame = pd.DataFrame(
+        {
+            "destination_port": [80.0, 80.0, 80.0, 443.0, 443.0, 22.0],
+            "source_ip": ["a", "a", "b", "c", "c", "d"],
+        }
+    )
+    y_true = np.array([False, False, False, False, False, True])
+    y_pred = np.array([True, True, False, False, False, True])
+    profile = false_positive_profile(
+        frame, y_true, y_pred, ("destination_port", "source_ip", "nope")
+    )
+    assert profile["false_positives"] == 2
+    assert profile["benign_flows"] == 5
+    ports = profile["destination_port"]
+    assert isinstance(ports, list)
+    assert ports[0]["value"] == "80"
+    assert ports[0]["share_of_false_positives"] == 1.0
+    assert ports[0]["false_positive_rate"] == pytest.approx(2 / 3)
+    assert "nope" not in profile
+
+
+def test_false_positive_profile_without_false_positives() -> None:
+    frame = pd.DataFrame({"destination_port": [80.0, 443.0]})
+    result = false_positive_profile(
+        frame, np.array([False, True]), np.array([False, True]), ("destination_port",)
+    )
+    assert result == {"false_positives": 0, "benign_flows": 1}

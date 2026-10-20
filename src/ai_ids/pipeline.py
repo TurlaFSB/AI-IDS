@@ -30,6 +30,7 @@ from ai_ids.data.split import DatasetSplit, chronological_split
 from ai_ids.evaluation.metrics import (
     binary_report,
     breakdown_by_group,
+    false_positive_profile,
     latency_profile,
     macro_recall,
     per_class_recall,
@@ -131,6 +132,11 @@ def evaluate_detector(
     if TIMESTAMP in split.test.columns:
         days = split.test[TIMESTAMP].dt.strftime("%Y-%m-%d")
         report["by_day"] = breakdown_by_group(days, y_true, y_pred)
+        hours = split.test[TIMESTAMP].dt.strftime("%Y-%m-%d %H:00")
+        report["by_hour"] = breakdown_by_group(hours, y_true, y_pred)
+    report["false_positive_profile"] = false_positive_profile(
+        split.test, y_true, y_pred, config.fp_profile_columns
+    )
     if isinstance(detector, RandomForestDetector):
         predicted = detector.predict_category(split.test[features])
         actual = split.test[CATEGORY].to_numpy()
@@ -151,7 +157,11 @@ def prepare_data(
     data_path: Path, config: TrainConfig
 ) -> tuple[DatasetSplit, list[str], CleaningReport]:
     """Load, clean, and split a dataset; shared by training and holdout evaluation."""
-    df, cleaning = load_dataset(data_path, pm_fix_before_hour=config.timestamp_pm_fix_before_hour)
+    df, cleaning = load_dataset(
+        data_path,
+        pm_fix_before_hour=config.timestamp_pm_fix_before_hour,
+        dayfirst=config.timestamp_dayfirst,
+    )
     features = feature_columns(df)
     split = chronological_split(df, config.split_fractions)
     if split.val[~split.val[IS_ATTACK]].empty or split.test.empty:

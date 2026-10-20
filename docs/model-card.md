@@ -62,7 +62,7 @@ slowhttptest 0.992 (1,308); FTP-Patator 0.999 (1,485); SSH-Patator 0.984 (806); 
 Isolation Forest detects slowhttptest (0.724) and, on 10 flows, infiltration (0.8); everything
 else is below 0.15.
 
-### Calibration under drift
+### Calibration under temporal shift
 
 | Target FPR (validation) | Random Forest, FPR on test | Isolation Forest, FPR on test |
 |---|---|---|
@@ -70,9 +70,25 @@ else is below 0.15.
 | 1% | 8.1% | 3.4% |
 | 5% | 15.3% | 10.4% |
 
-Later benign traffic differs from earlier benign traffic, so thresholds calibrated once on
-validation data do not hold. Random Forest scores take only about 200 distinct values (share of
-trees voting "attack"), which makes low-FPR operating points degenerate.
+Random Forest, per capture day at the 1% operating point (test split):
+
+| Day (2017) | Benign flows | False-positive rate | Attack flows | Recall |
+|---|---|---|---|---|
+| Tue 4 July | 0 | n/a | 2,291 | 0.994 |
+| Wed 5 July | 0 | n/a | 48,445 | 0.991 |
+| Thu 6 July | 129,056 | **0.222** | 548 | 0.980 |
+| Fri 7 July | 395,106 | 0.035 | 55,201 | 0.989 |
+
+All test-set benign flows come from Thursday and Friday (benign traffic is split chronologically
+across the week). Per-feature Population Stability Index between training and test benign
+traffic shows no significant drift (0 of 78 features above 0.25; 5 moderate, max 0.125, all on
+backward packet-length features). The concentration on Thursday therefore points to a specific
+traffic subset rather than broad covariate shift. **Hypothesis, unverified:** flows around the
+Thursday-afternoon infiltration session, where labels are known to be noisy. The hourly
+breakdown and false-positive profile in `report.json` exist to test this.
+
+Random Forest scores take only about 200 distinct values (share of trees voting "attack"), which
+makes low-FPR operating points degenerate (see ADR 0005).
 
 ## Robustness to evasion (method)
 

@@ -43,6 +43,8 @@ def test_train_end_to_end(
     )
     assert "git_dirty" in report["environment"]
     assert set(rf["by_day"]) == {"2017-07-03"}
+    assert all(key.startswith("2017-07-03 ") for key in rf["by_hour"])
+    assert rf["false_positive_profile"]["benign_flows"] > 0
     assert set(report["benign_drift"]) == {"train_vs_val", "train_vs_test"}
     assert "top" in report["benign_drift"]["train_vs_test"]
     assert "fpr_0.001" in rf["operating_points"]

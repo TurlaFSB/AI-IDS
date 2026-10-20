@@ -6,7 +6,14 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Fixed
+- Dates in CICIDS2017 files are day-first; they were parsed month-first, which mislabelled capture
+  days in reports (chronological order was unaffected). Parsing is now day-first by default
+  (`timestamp_dayfirst`).
+
 ### Added
+- Hourly false-positive and recall breakdown, and a false-positive profile (which ports and hosts
+  false alarms concentrate on) in every report.
 - Supply-chain hardening (ADR 0006): hash-locked dependencies with a lock-freshness CI check,
   SHA-pinned GitHub Actions, a multi-stage non-root Dockerfile with a digest-pinned base image,
   and container build, smoke test and Trivy scan in CI.

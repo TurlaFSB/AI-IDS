@@ -56,8 +56,12 @@ def read_csv_file(path: Path) -> pd.DataFrame:
     return df
 
 
-def _parse_timestamps(series: pd.Series, pm_fix_before_hour: int | None) -> pd.Series:
-    parsed = pd.to_datetime(series, format="mixed", errors="coerce")
+def _parse_timestamps(
+    series: pd.Series, pm_fix_before_hour: int | None, *, dayfirst: bool
+) -> pd.Series:
+    # CICIDS2017 writes dates day-first ("4/7/2017" is 4 July); parsing them month-first
+    # silently mislabels days and can misorder data for other date ranges.
+    parsed = pd.to_datetime(series, format="mixed", dayfirst=dayfirst, errors="coerce")
     if pm_fix_before_hour is not None:
         # The source files use a 12-hour clock without AM/PM while capture ran ~09:00-17:00,
         # so hours earlier than the capture start are afternoon times.
@@ -67,7 +71,7 @@ def _parse_timestamps(series: pd.Series, pm_fix_before_hour: int | None) -> pd.S
 
 
 def clean_flows(
-    df: pd.DataFrame, *, pm_fix_before_hour: int | None = 8
+    df: pd.DataFrame, *, pm_fix_before_hour: int | None = 8, dayfirst: bool = True
 ) -> tuple[pd.DataFrame, CleaningReport]:
     """Normalise labels, coerce features to numeric, drop duplicates and non-finite values.
 
@@ -102,7 +106,7 @@ def clean_flows(
     duplicates_removed = before - len(out)
 
     if TIMESTAMP in out.columns:
-        out[TIMESTAMP] = _parse_timestamps(out[TIMESTAMP], pm_fix_before_hour)
+        out[TIMESTAMP] = _parse_timestamps(out[TIMESTAMP], pm_fix_before_hour, dayfirst=dayfirst)
         out = out.sort_values(TIMESTAMP, kind="stable", na_position="last")
 
     out = out.reset_index(drop=True)
@@ -124,7 +128,7 @@ def feature_columns(df: pd.DataFrame) -> list[str]:
 
 
 def load_dataset(
-    path: Path, *, pm_fix_before_hour: int | None = 8
+    path: Path, *, pm_fix_before_hour: int | None = 8, dayfirst: bool = True
 ) -> tuple[pd.DataFrame, CleaningReport]:
     """Load one CSV file or every `*.csv` in a directory, then clean the combined frame."""
     path = Path(path)
@@ -133,4 +137,8 @@ def load_dataset(
         raise FileNotFoundError(f"no CSV files found at {path}")
     frames = [read_csv_file(f) for f in files]
     logger.info("loaded csv files", extra={"fields": {"files": [f.name for f in files]}})
-    return clean_flows(pd.concat(frames, ignore_index=True), pm_fix_before_hour=pm_fix_before_hour)
+    return clean_flows(
+        pd.concat(frames, ignore_index=True),
+        pm_fix_before_hour=pm_fix_before_hour,
+        dayfirst=dayfirst,
+    )

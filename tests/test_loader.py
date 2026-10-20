@@ -83,3 +83,23 @@ def test_load_directory(tmp_path: Path) -> None:
 def test_empty_directory_raises(tmp_path: Path) -> None:
     with pytest.raises(FileNotFoundError):
         load_dataset(tmp_path)
+
+
+def test_dates_are_parsed_day_first_like_cicids2017() -> None:
+    # "4/7/2017" is 4 July in CICIDS2017 (capture ran 3-7 July 2017), not 7 April.
+    df = pd.DataFrame(
+        {
+            "timestamp": ["4/7/2017 8:45", "7/7/2017 1:05", "6/7/2017 10:30"],
+            "x": [1.0, 2.0, 3.0],
+            "label": ["BENIGN", "BENIGN", "PortScan"],
+        }
+    )
+    cleaned_df, _ = clean_flows(df)
+    stamps = cleaned_df[TIMESTAMP].dt.strftime("%Y-%m-%d %H:%M").tolist()
+    assert stamps == ["2017-07-04 08:45", "2017-07-06 10:30", "2017-07-07 13:05"]
+
+
+def test_month_first_still_available() -> None:
+    df = pd.DataFrame({"timestamp": ["4/7/2017 9:00"], "x": [1.0], "label": ["BENIGN"]})
+    cleaned_df, _ = clean_flows(df, dayfirst=False)
+    assert cleaned_df[TIMESTAMP].iloc[0].month == 4

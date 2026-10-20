@@ -176,7 +176,8 @@ report.json   metrics, operating points, per-attack recall, per-day FPR, drift, 
   PR-AUC are reported, with per-attack recall and support.
 - **Latency** is measured per scoring call, single inference thread, after warm-up.
 - Results are reported at several operating points (0.1%, 1%, 5% target FPR), per capture day,
-  and with a benign-traffic drift summary (Population Stability Index per feature).
+  per capture day and hour, with a profile of where false positives concentrate, and with a
+  benign-traffic drift summary (Population Stability Index per feature).
 
 ## Results
 
@@ -195,10 +196,16 @@ of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,
 
 **What these numbers mean, honestly:**
 
-- **The false-positive rate did not hold.** Thresholds targeted 1% on validation, but test FPR
-  was 8.1% (Random Forest) and 3.4% (Isolation Forest). Benign traffic later in the week differs
-  from earlier benign traffic, so a threshold calibrated once does not stay calibrated. This is
-  the drift problem that retraining and recalibration are meant to address.
+- **The false-positive rate did not hold, and the miss is concentrated.** Thresholds targeted 1%
+  on validation, but test FPR was 8.1% (Random Forest) and 3.4% (Isolation Forest). Per capture
+  day, Random Forest FPR was **22.2% on Thursday 6 July** (129,056 benign test flows) versus
+  **3.5% on Friday 7 July** (395,106 benign test flows); the overall 8.1% is that blend. Per-feature
+  drift (PSI) between training and test benign traffic is small: no feature is above the
+  "significant" threshold of 0.25 (maximum 0.12, on backward packet-length features), so this is
+  not broad distribution shift. A specific subset of Thursday traffic is the likely cause; one
+  hypothesis, **not yet verified**, is flows around the Thursday-afternoon infiltration session,
+  where the dataset's labels are known to be noisy. `report.json` now includes hourly rates and a
+  false-positive profile (which ports and hosts the false alarms cluster on) to test this.
 - **Headline recall is dominated by three attack types.** DDoS, DoS Hulk and PortScan are 92% of
   attack flows. Averaged evenly over attack types, Random Forest recall is 0.87. Bot is missed
   entirely (recall 0.00, 490 test flows).
@@ -214,7 +221,8 @@ of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,
   to mean anything.
 
 Reproduce with `ai-ids train`; the full per-attack table, results at other operating points,
-per-day false-positive rates, and feature-drift (PSI) summaries are in `report.json`.
+per-day and per-hour false-positive rates, false-positive profile, and feature-drift (PSI)
+summaries are in `report.json`.
 
 ## Limitations
 

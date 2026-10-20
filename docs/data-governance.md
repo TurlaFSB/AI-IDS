@@ -32,6 +32,11 @@ IP addresses and timestamps in flow records can identify individuals (GDPR Recit
 - **Retention (production use):** keep raw flow data only as long as needed for detection and
   retraining; define and document the period before deployment.
 - **Logs:** application logs must not contain raw flow records or credentials.
+- **Reports:** `report.json` can list the most frequent source and destination IPs among false
+  positives (`fp_profile_columns`). For the public testbed dataset this is harmless; with real
+  traffic, remove the IP columns from `fp_profile_columns` or treat the report as personal data.
+- **Timestamps:** CIC-IDS-2017 dates are day-first (`4/7/2017` is 4 July 2017); the loader parses
+  them accordingly (`timestamp_dayfirst`).
 
 ## Secrets
 

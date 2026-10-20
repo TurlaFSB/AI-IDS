@@ -96,6 +96,49 @@ def breakdown_by_group(
     return result
 
 
+def _display(value: object) -> str:
+    if isinstance(value, float) and value.is_integer():
+        return str(int(value))
+    return str(value)
+
+
+def false_positive_profile(
+    frame: pd.DataFrame,
+    y_true: BoolArray,
+    y_pred: BoolArray,
+    columns: tuple[str, ...],
+    top_k: int = 10,
+) -> dict[str, object]:
+    """Which values of each column the false positives concentrate on.
+
+    For each value: how many false positives it has, its share of all false positives, and the
+    false-positive rate among benign flows with that value. A few values with a very high rate
+    point to a specific traffic cluster (or label noise) rather than broad drift.
+    """
+    benign = frame[~y_true]
+    false_positives = frame[~y_true & y_pred]
+    total = len(false_positives)
+    result: dict[str, object] = {"false_positives": total, "benign_flows": len(benign)}
+    if total == 0:
+        return result
+    for column in columns:
+        if column not in frame.columns:
+            continue
+        counts = false_positives[column].value_counts().head(top_k)
+        benign_counts = benign[column].value_counts().to_dict()
+        result[column] = [
+            {
+                "value": _display(value),
+                "false_positives": int(count),
+                "share_of_false_positives": float(count / total),
+                "false_positive_rate": float(count / benign_counts[value]),
+                "benign_flows": int(benign_counts[value]),
+            }
+            for value, count in counts.items()
+        ]
+    return result
+
+
 def latency_profile(
     score_fn: Callable[[pd.DataFrame], FloatArray],
     X: pd.DataFrame,
