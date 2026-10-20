@@ -1,8 +1,9 @@
 # syntax=docker/dockerfile:1
 #
-# Base image: Docker Official Image python:3.12-slim, pulled from the AWS public mirror (same
-# images and digests, avoids Docker Hub rate limits) and pinned by index digest.
-ARG PYTHON_IMAGE=public.ecr.aws/docker/library/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
+# Base image: Docker Official Image python:3.12-slim, pulled through Google's Docker Hub mirror
+# (identical content and digest, avoids Docker Hub anonymous rate limits) and pinned by index
+# digest. Verify with: docker buildx imagetools inspect docker.io/library/python:3.12-slim
+ARG PYTHON_IMAGE=mirror.gcr.io/library/python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1
 
 FROM ${PYTHON_IMAGE} AS builder
 ENV PIP_NO_CACHE_DIR=1 \

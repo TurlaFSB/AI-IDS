@@ -94,6 +94,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - name: Pre-pull pinned base image (retry on registry throttling)
+        run: |
+          image="$(sed -n 's/^ARG PYTHON_IMAGE=//p' Dockerfile)"
+          for attempt in 1 2 3 4; do
+            docker pull "$image" && exit 0
+            sleep $((attempt * 15))
+          done
+          exit 1
       - name: Build image
         run: docker build --tag ai-ids:ci .
       - name: Smoke test (read-only filesystem, non-root)
