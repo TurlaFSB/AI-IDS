@@ -1,7 +1,7 @@
 # 0008. Evasion-aware training by symmetric flow augmentation
 
-Status: Accepted (2026-10-20); redesigned after the first design failed its control; redesign
-results pending
+Status: Accepted (2026-10-20); redesigned after the first design failed its control;
+redesign validated on real data (single seed, feature space)
 
 ## Context
 The evasion-sensitivity analysis showed the Random Forest depends on absolute packet sizes: adding
@@ -41,3 +41,18 @@ simulation in the tests) and slowdowns.
   robustness to other or adaptive attacks, and the analysis remains feature-space.
 - The lesson stands as part of the project: evasion defences must be evaluated against perturbed
   benign traffic, not only perturbed attacks.
+
+## Results of the redesign
+
+Real run (`configs/robustness.yaml`, test split). The Random Forest with symmetric augmentation keeps
+its clean accuracy (recall 0.990, FPR 0.080) and its recall under perturbation matches or nears it:
+forward padding 0.990, padding of both directions (never trained on) 0.96-0.98 against 0.51 for the
+plain model, slowing 10x 0.978 against 0.950. Benign flows flagged under perturbation stay at or
+below the clean rate, so the shortcut of the first design is absent. Gradient boosting becomes robust
+to slowing and forward padding, improves on the unseen type (0.47 to 0.72), but its clean false-positive
+rate rises from 0.26% to 7.0%, probably because it no longer depends on packet sizes and flags the
+mislabelled scan traffic (to be verified).
+
+Limits: feature-space transformations, one seed, perturbation families chosen by us. The conclusion
+is that symmetric augmentation removes the specific weakness measured, not that the detectors are
+robust to adaptive adversaries.

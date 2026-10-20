@@ -205,10 +205,32 @@ falls to about zero under padding: its false alarms depend on packet sizes too. 
 boosting is hurt by slowing flows, which makes benign flows resemble slow DoS (benign flagged 3.6%
 at 10x).
 
-**Redesign (pending results).** Copies are drawn from benign and attack flows alike, so a flow being
-perturbed carries no label information, and training uses forward-only padding plus slowdowns, so
-padding of both directions, the combined perturbation and per-flow random padding are never
-trained on. Same evaluation, benign control included. Results are not yet available.
+**Redesign: symmetric augmentation (results).** Perturbed copies (25% of the training rows) are
+drawn from benign and attack flows alike, so a flow being perturbed carries no label information.
+Training uses forward-only padding (32, 128, 512 B) and slowdowns (3x, 7x); evaluation magnitudes
+differ, and padding of both directions, the combined perturbation and per-flow random padding are
+never trained on. Attack recall, with benign flows flagged under the same perturbation in brackets:
+
+| Detector | Clean | Slow 2x / 5x / 10x | Forward pad 64 / 256 / 1,024 B | Pad both dirs 64 / 256 / 1,024 B (unseen type) | Slow 5x + pad 256 B (unseen) |
+|---|---|---|---|---|---|
+| Random Forest | 0.990 (8.1%) | 0.979 / 0.965 / 0.950 (8.3 / 8.3 / 8.5%) | 0.567 / 0.591 / 0.547 (1.1 / 0.8 / 0.1%) | 0.513 / 0.531 / 0.508 (0.0 / 0.3 / 0.1%) | 0.599 (0.4%) |
+| RF, symmetric aug | 0.990 (8.0%) | 0.988 / 0.987 / 0.978 (8.1 / 8.3 / 8.3%) | **0.990 / 0.991 / 0.990** (7.5 / 7.4 / 4.2%) | **0.959 / 0.962 / 0.978** (1.8 / 0.6 / 0.6%) | 0.932 (0.2%) |
+| Gradient boosting | 0.868 (0.26%) | 0.858 / 0.835 / 0.785 (0.2 / 2.0 / 3.6%) | 0.517 / 0.508 / 0.534 (0 / 0 / 0%) | 0.466 / 0.460 / 0.415 (0 / 0 / 0%) | 0.458 (0%) |
+| GB, symmetric aug | 0.988 (7.0%) | 0.983 / 0.978 / 0.954 (7.2 / 7.0 / 6.4%) | 0.986 / 0.988 / 0.988 (5.6 / 5.6 / 5.6%) | 0.716 / 0.712 / 0.727 (0.07 / 0.04 / 0.04%) | 0.690 (0.1%) |
+
+Clean-data effect: Random Forest recall 0.990 to 0.990, FPR 0.081 to 0.080, precision 0.713 to
+0.716, PR-AUC 0.9930 to 0.9933, macro recall 0.870 to 0.884. Gradient boosting recall 0.868 to 0.988,
+FPR 0.0026 to 0.0696, precision 0.985 to 0.742, PR-AUC 0.988 to 0.976, macro recall 0.578 to 0.806.
+
+Reading it. For the Random Forest the defence is genuine: recall under padding of both directions
+(a type never trained on) rises from about 0.51 to 0.96-0.98, recall under forward padding and
+slowing matches clean recall, and benign flows flagged under perturbation never exceed the clean
+rate (the shortcut of the first design flagged 24-70%). For gradient boosting the defence also
+holds for slowing and forward padding but is weaker on the unseen type (0.72), and the clean
+operating point changes sharply: false positives rise from 0.26% to 7.0%. A likely but unverified
+explanation is that the robust model no longer depends on packet sizes and therefore flags the
+mislabelled scan traffic; `ai-ids analyze` on the saved model tests this. All results are
+feature-space and single-seed, and they cover the modelled perturbation families only.
 
 ## Limitations and risks
 

@@ -25,6 +25,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`timestamp_dayfirst`).
 
 ### Added
+- Real-run results for symmetric evasion-aware training: the Random Forest keeps clean accuracy and
+  recovers recall under padding and slowing (0.51 to 0.96-0.99) with no increase in benign false
+  positives; gradient boosting gains robustness at a large clean false-positive cost.
 - Results of standard versus evasion-aware training, and the gradient-boosting host analysis, in the
   README and model card (preliminary until the benign controls are reported).
 - Evasion-aware training (ADR 0008): `random_forest_aug` and `hist_gradient_boosting_aug` train on
