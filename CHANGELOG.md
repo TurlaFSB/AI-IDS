@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Supply-chain hardening (ADR 0006): hash-locked dependencies with a lock-freshness CI check,
+  SHA-pinned GitHub Actions, a multi-stage non-root Dockerfile with a digest-pinned base image,
+  and container build, smoke test and Trivy scan in CI.
+- Feature-space evasion-sensitivity analysis (timing and packet-size reshaping) in every report.
 - Gradient-boosting detector with continuous scores (ADR 0005); detectors selectable by name
   in the experiment config.
 - Reproducibility metadata in `report.json`: SHA-256 digests of the input dataset files and a

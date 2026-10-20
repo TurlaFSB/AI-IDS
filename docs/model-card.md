@@ -74,6 +74,15 @@ Later benign traffic differs from earlier benign traffic, so thresholds calibrat
 validation data do not hold. Random Forest scores take only about 200 distinct values (share of
 trees voting "attack"), which makes low-FPR operating points degenerate.
 
+## Robustness to evasion (method)
+
+Every report includes a feature-space evasion-sensitivity analysis: attack flows are transformed
+(timing slowed by 2x, 5x, 10x; packet-size statistics padded by 64, 256, 1024 bytes; and one
+combination) and recall is re-measured at the already-calibrated threshold. This is a
+**sensitivity indicator, not a packet-level attack**: perturbations act on derived flow
+features, assume the attacker can reshape them without breaking the attack, and touch only
+features present in the data. Results on real data are pending.
+
 ## Limitations and risks
 
 - **Dataset artefacts:** CIC-IDS-2017 has documented labelling and flow-construction issues,

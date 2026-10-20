@@ -22,6 +22,7 @@ class TrainConfig:
     isolation_forest: dict[str, Any] = field(default_factory=dict)
     hist_gradient_boosting: dict[str, Any] = field(default_factory=dict)
     detectors: tuple[str, ...] = DEFAULT_DETECTORS
+    evasion_analysis: bool = True
     holdout: dict[str, Any] = field(default_factory=dict)
 
     @classmethod

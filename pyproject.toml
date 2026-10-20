@@ -29,6 +29,9 @@ dev = [
     "pandas-stubs",
     "types-PyYAML",
     "pre-commit>=3.7",
+    "bandit>=1.7",
+    "pip-audit>=2.7",
+    "cyclonedx-bom>=4",
 ]
 
 [project.scripts]

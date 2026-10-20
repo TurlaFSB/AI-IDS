@@ -12,6 +12,7 @@ concurrency:
   group: ci-${{ github.ref }}
   cancel-in-progress: true
 
+# Third-party actions are pinned to full commit SHAs (the version is in the trailing comment).
 jobs:
   quality:
     runs-on: ubuntu-latest
@@ -21,15 +22,18 @@ jobs:
       matrix:
         python-version: ["3.11", "3.12", "3.13"]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: ${{ matrix.python-version }}
           cache: pip
-      - name: Install
-        run: pip install -e ".[dev]"
+          cache-dependency-path: requirements/dev.txt
+      - name: Install (hash-verified)
+        run: |
+          pip install --require-hashes -r requirements/dev.txt
+          pip install --no-deps -e .
       - name: Lint
         run: |
           ruff check src tests
@@ -43,22 +47,63 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
           python-version: "3.12"
           cache: pip
-      - name: Install
-        run: pip install -e ".[dev]" pip-audit bandit cyclonedx-bom
+          cache-dependency-path: requirements/dev.txt
+      - name: Install (hash-verified)
+        run: |
+          pip install --require-hashes -r requirements/dev.txt
+          pip install --no-deps -e .
       - name: Static security analysis
         run: bandit -r src -ll
       - name: Dependency vulnerability audit
         run: pip-audit
       - name: Generate SBOM
         run: cyclonedx-py environment --of JSON -o sbom.cdx.json
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: sbom
           path: sbom.cdx.json
+
+  lock-check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.12"
+      - name: Install pinned uv (hash-verified)
+        run: pip install --require-hashes -r requirements/tools.txt
+      - name: Lock files are up to date
+        run: |
+          ./scripts/lock.sh
+          git diff --exit-code -- requirements
+
+  container:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Build image
+        run: docker build --tag ai-ids:ci .
+      - name: Smoke test (read-only filesystem, non-root)
+        run: |
+          docker run --rm --read-only ai-ids:ci --version
+          test "$(docker run --rm --entrypoint id ai-ids:ci -u)" = "10001"
+      - name: Scan image for vulnerabilities (Trivy)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ai-ids:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"

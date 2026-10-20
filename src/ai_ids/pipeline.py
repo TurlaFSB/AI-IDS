@@ -35,6 +35,7 @@ from ai_ids.evaluation.metrics import (
     per_class_recall,
     threshold_for_fpr,
 )
+from ai_ids.evaluation.robustness import evasion_report
 from ai_ids.models.detectors import (
     BaseDetector,
     HistGradientBoostingDetector,
@@ -123,6 +124,10 @@ def evaluate_detector(
         "macro_recall_min_support_30": macro_recall(per_attack, min_support=30),
         "latency_single_thread": latency_profile(detector.score, split.test[features]),
     }
+    if config.evasion_analysis:
+        report["evasion"] = evasion_report(
+            detector, split.test[split.test[IS_ATTACK]], features, threshold
+        )
     if TIMESTAMP in split.test.columns:
         days = split.test[TIMESTAMP].dt.strftime("%Y-%m-%d")
         report["by_day"] = breakdown_by_group(days, y_true, y_pred)

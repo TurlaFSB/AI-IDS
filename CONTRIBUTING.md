@@ -31,6 +31,18 @@ pytest            # enforces >= 85% coverage
 
 New behaviour ships with tests. Bug fixes ship with a regression test.
 
+## Dependencies and the lock files
+
+Dependencies are declared in `pyproject.toml` and locked with hashes in `requirements/`.
+After changing them, regenerate the locks and commit the result:
+
+```bash
+pip install --require-hashes -r requirements/tools.txt   # installs the pinned uv
+./scripts/lock.sh
+```
+
+CI fails if the lock files are out of date. Never edit them by hand.
+
 ## Pull requests
 
 1. Fork and branch from `main`.

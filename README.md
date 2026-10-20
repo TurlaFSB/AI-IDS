@@ -53,7 +53,9 @@ model artifacts.
 | Metrics | Recall, precision, F1, FPR, MCC, ROC-AUC, PR-AUC, per-attack recall with support, scoring latency (p50/p95/p99) |
 | Model registry | SHA-256 manifest per artifact, optional HMAC-SHA256 signature, recorded environment versions |
 | Threat mapping | Each attack type mapped to a MITRE ATT&CK technique for alert enrichment |
-| Engineering | Typed (`mypy --strict`), linted, 85%+ coverage gate, CI on Python 3.11-3.13, SAST, dependency audit, SBOM |
+| Robustness | Feature-space evasion-sensitivity analysis (timing and packet-size reshaping) per detector, leave-one-attack-family-out test, per-day FPR and benign-drift (PSI) diagnostics |
+| Supply chain | Hash-locked dependencies, SHA-pinned CI actions, digest-pinned non-root container image, `bandit`, `pip-audit`, Trivy, CycloneDX SBOM |
+| Engineering | Typed (`mypy --strict`), linted, 85%+ coverage gate, CI on Python 3.11-3.13 |
 
 ## Architecture
 
@@ -88,6 +90,8 @@ cd AI-IDS
 python -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"
+# Fully reproducible, hash-verified install (recommended for CI and releases):
+#   pip install --require-hashes -r requirements/dev.txt && pip install --no-deps -e .
 
 # Verify the pipeline on synthetic data (no download needed)
 ai-ids synth --out data/synthetic.csv --rows 30000
@@ -104,6 +108,19 @@ ruff check src tests && ruff format --check src tests
 mypy
 pytest
 ```
+
+### Container
+
+```bash
+docker build -t ai-ids .
+docker run --rm --read-only ai-ids --version
+# Mount data and config read-only, and an output directory explicitly:
+docker run --rm --read-only \
+  -v "$PWD/data:/data:ro" -v "$PWD/configs:/configs:ro" -v "$PWD/models:/out" \
+  ai-ids train --data /data/raw/TrafficLabelling --out /out/run --config /configs/default.yaml
+```
+
+The image is multi-stage, runs as a non-root user, and pins its base image by digest.
 
 ## Using CICIDS2017
 
@@ -207,7 +224,8 @@ per-day false-positive rates, and feature-drift (PSI) summaries are in `report.j
   treat early numbers as provisional.
 - Attacks in the dataset come from a small set of tools, so models may learn tool signatures.
 - Very small classes (Heartbleed, Infiltration) have tiny test sets and unreliable recall.
-- No adversarial-evasion evaluation yet; performance on other networks is unknown.
+- The evasion analysis is feature-space only (not packet-level); performance on other networks is
+  unknown.
 - Model artifacts are pickle-based: load only verified artifacts from storage you control.
 
 ## Project layout
@@ -244,8 +262,9 @@ tests/             unit and end-to-end tests
 - Model artifacts are verified (SHA-256, optional HMAC-SHA256) before loading, but they remain
   pickle-based: loading one executes code. Only load artifacts you trained and stored yourself.
 - Datasets, captures, trained models, and secrets are git-ignored and must never be committed.
-- CI runs lint, type checks, tests on Python 3.11-3.13, `bandit`, `pip-audit`, and produces a
-  CycloneDX SBOM.
+- Dependencies are hash-locked and installed with `--require-hashes`; third-party CI actions are
+  pinned to commit SHAs; the container base image is pinned by digest and scanned with Trivy; CI
+  also runs `bandit`, `pip-audit`, and produces a CycloneDX SBOM ([ADR 0006](docs/adr/0006-supply-chain-integrity.md)).
 
 ## Roadmap
 
@@ -257,7 +276,8 @@ tests/             unit and end-to-end tests
    local blocklist fallback; ATT&CK-tagged alerts.
 4. **Milestone 5:** Drift detection (PSI/KS) gating scheduled retraining, with champion/challenger
    promotion and rollback.
-5. **Milestone 6:** Dashboard, container image (non-root, pinned base), hash-locked dependencies.
+5. **Milestone 6:** Dashboard and a live demo (flow replay and live capture through the scoring
+   service); packet-level adversarial evaluation.
 
 ## Contributing
 
