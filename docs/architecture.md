@@ -1,6 +1,6 @@
 # Architecture
 
-## Current system (v0.1)
+## Training and evaluation pipeline
 
 ```mermaid
 flowchart LR
@@ -29,6 +29,33 @@ flowchart LR
 | Evaluate | `ai_ids.evaluation.metrics` | Detection metrics, per-attack recall, latency percentiles |
 | Persist | `ai_ids.registry` | Versioned artifacts with integrity manifest |
 | Orchestrate | `ai_ids.pipeline`, `ai_ids.cli` | End-to-end training run and command-line entry points |
+
+## Scoring service (v0.2)
+
+```mermaid
+flowchart LR
+    C[Client or replay tool] -->|"POST /v1/score (score key)"| P[TLS reverse proxy]
+    P --> W[waitress]
+    W --> A[Flask app: rate limit, auth, validation]
+    R[Verified model directory] -->|digest + HMAC check at start| A
+    A --> D[Calibrated detector]
+    D --> S[In-memory state: counters, alert buffer]
+    S --> E["/v1/alerts, /v1/stats (read key)"]
+    A --> M["/metrics (Prometheus)"]
+    E --> B[Dashboard: same-origin static page]
+```
+
+| Module | Responsibility |
+|---|---|
+| `ai_ids.service.settings` | Environment configuration, key checks |
+| `ai_ids.service.validation` | Strict request parsing |
+| `ai_ids.service.ratelimit` | Token-bucket limiter |
+| `ai_ids.service.state` | Bounded in-memory counters, series and alert buffer |
+| `ai_ids.service.app` | Application factory, auth, headers, endpoints, metrics |
+| `ai_ids.service.server` | Verified model loading and the waitress runner |
+| `ai_ids.service.replay` | Replay client for demonstrations |
+
+See `docs/api.md`, `docs/runbook.md` and ADR 0010.
 
 ## Design principles
 

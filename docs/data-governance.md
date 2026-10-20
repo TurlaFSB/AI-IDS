@@ -38,6 +38,18 @@ IP addresses and timestamps in flow records can identify individuals (GDPR Recit
 - **Timestamps:** CIC-IDS-2017 dates are day-first (`4/7/2017` is 4 July 2017); the loader parses
   them accordingly (`timestamp_dayfirst`).
 
+## Scoring service
+
+- Alerts (score, category, ATT&CK IDs and an allow-list of context fields that may include
+  source and destination IPs and a timestamp) are held in a bounded in-memory buffer
+  (`AI_IDS_ALERT_BUFFER`) and are not written to disk by the service. Raw feature vectors are not
+  retained.
+- Request logs hold metadata only (request ID, path, status, duration, flow count).
+- The minimisation lever is the client: omit `source_ip` and `destination_ip` from requests if the
+  analyst does not need them. The demo and replay use a public testbed dataset or synthetic data.
+- For production, define the lawful basis, who may hold the read key, and how long the
+  operator's log pipeline retains request logs before deployment.
+
 ## Secrets
 
 API keys and signing keys live in environment variables or a git-ignored `.env`. Only

@@ -39,11 +39,29 @@ Detected attack types are mapped to technique IDs in `ai_ids.labels` (for exampl
 T1046 Network Service Discovery, brute-force attacks to T1110). The mapping is analyst-assigned
 and approximate; it exists to enrich alerts, not as ground truth.
 
-## OWASP ASVS (planned service)
+## OWASP ASVS (scoring service)
 
-The scoring service and dashboard will be built to ASVS Level 2: authentication, session and
-access control, input validation, output encoding, CSRF protection, security headers, TLS,
-logging without sensitive data, and rate limiting.
+The service is designed against ASVS Level 2 and has **not** been independently assessed; the
+table is a self-assessment of what the code does, with the gaps stated.
+
+| Area | Control in this project | Gap |
+|---|---|---|
+| V2 Authentication | Bearer keys, 16-character minimum, constant-time comparison, distinct score and read keys | No per-user identity, MFA, lockout or expiry |
+| V3 Session | No server-side sessions or cookies; the dashboard keeps the read key in `sessionStorage` | Same-origin script could read it |
+| V4 Access control | Scope check on every API route; public routes are only probes, the spec and static files | Two coarse scopes only |
+| V5 Validation, encoding | Strict schema, size and range limits; values never echoed; dashboard uses `textContent` | |
+| V7 Errors, logging | JSON errors without traces; structured logs without keys, bodies or features | No tamper-evident audit log |
+| V8 Data protection | Alerts in memory only, bounded; `Cache-Control: no-store` on API responses | |
+| V9 Communication | HSTS when behind TLS; refuses non-loopback binding without explicit opt-in | TLS itself is the operator's proxy |
+| V12/V13 API | JSON only (415 otherwise), body and batch limits, rate limiting, OpenAPI spec | Rate limit keyed by peer address |
+| V14 Configuration | Secrets from the environment only, security headers and strict CSP, hash-pinned dependencies, scanned image | |
+
+CSRF: the API is authenticated by an `Authorization` header that browsers do not attach
+automatically, and there are no cookies, so classic CSRF does not apply; `form-action 'none'` and
+`frame-ancestors 'none'` are also set.
+
+OWASP Top 10 (2021) coverage is mapped in the table above and in the threat model (A01 access
+control, A03 injection, A05 misconfiguration, A06 vulnerable components, A08 integrity).
 
 ## Privacy
 

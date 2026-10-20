@@ -20,6 +20,7 @@ evaluation, calibrated false-positive rates, and integrity-checked models.
 - [Features](#features)
 - [Architecture](#architecture)
 - [Quickstart](#quickstart)
+- [Live demo](#live-demo-scoring-service-and-dashboard)
 - [Using CICIDS2017](#using-cicids2017)
 - [Usage](#usage)
 - [Evaluation methodology](#evaluation-methodology)
@@ -54,6 +55,7 @@ model artifacts.
 | Model registry | SHA-256 manifest per artifact, optional HMAC-SHA256 signature, recorded environment versions |
 | Threat mapping | Each attack type mapped to a MITRE ATT&CK technique for alert enrichment |
 | Robustness | Feature-space evasion-sensitivity analysis (timing and packet-size reshaping) per detector, leave-one-attack-family-out test, per-day FPR and benign-drift (PSI) diagnostics |
+| Service | Flask/waitress scoring API with bearer-key scopes, rate limiting, strict validation, security headers and CSP, Prometheus metrics, health probes, OpenAPI spec, a same-origin dashboard and a replay client (ADR 0010) |
 | Supply chain | Hash-locked dependencies, SHA-pinned CI actions, digest-pinned non-root container image, `bandit`, `pip-audit`, Trivy, CycloneDX SBOM |
 | Engineering | Typed (`mypy --strict`), linted, 85%+ coverage gate, CI on Python 3.11-3.13 |
 
@@ -81,7 +83,7 @@ flowchart LR
     G --> I[report.json]
 ```
 
-More detail, including the target architecture, is in [docs/architecture.md](docs/architecture.md).
+More detail, including the scoring-service diagram, is in [docs/architecture.md](docs/architecture.md).
 
 ## Quickstart
 
@@ -124,6 +126,28 @@ docker run --rm --read-only \
 ```
 
 The image is multi-stage, runs as a non-root user, and pins its base image by digest.
+
+## Live demo: scoring service and dashboard
+
+A trained model can be served and watched in a browser. This runs on synthetic data and shows the
+plumbing, not detection quality.
+
+```bash
+ai-ids synth --out data/synthetic.csv --rows 30000
+ai-ids train --data data/synthetic.csv --out models/demo --config configs/light.yaml
+ai-ids serve --model-dir models/demo/random_forest --demo   # prints the dashboard URL and keys
+# second terminal, with the printed score key:
+AI_IDS_API_KEY=<printed key> ai-ids replay --synthetic --rate 20
+```
+
+![Dashboard replaying synthetic flows](docs/images/dashboard-demo.png)
+
+*Synthetic data. The dashboard shows throughput, alerts, request latency percentiles and recent
+alerts with their ATT&CK technique IDs.*
+
+For real deployments see the [runbook](docs/runbook.md) and [API reference](docs/api.md): the
+service has no TLS of its own, binds to loopback unless told otherwise, and keeps alerts (which
+may contain IP addresses) in memory only.
 
 ## Using CICIDS2017
 
@@ -327,6 +351,9 @@ these from a saved model in minutes; it refuses to run if the data or split diff
 - The evasion analysis is feature-space only (not packet-level); performance on other networks is
   unknown.
 - Model artifacts are pickle-based: load only verified artifacts from storage you control.
+- The service is single-process with in-memory state, shared-key authentication and no TLS of its
+  own. It has been tested by the project's own suite and manual browser checks, not by an
+  independent assessment, and no throughput or capacity figures have been measured.
 
 ## Project layout
 
@@ -338,6 +365,7 @@ src/ai_ids/
   evaluation/      metrics and latency profiling
   registry.py      integrity-checked model artifacts
   pipeline.py      train + evaluate + persist
+  service/         scoring API, dashboard, replay client
   cli.py           ai-ids command
 configs/           experiment configuration
 docs/              architecture, threat model, compliance, data governance, model card, ADRs
@@ -351,6 +379,8 @@ tests/             unit and end-to-end tests
 | [Architecture](docs/architecture.md) | Components, data flow, target design |
 | [Threat model](docs/threat-model.md) | STRIDE analysis and mitigations |
 | [Standards alignment](docs/compliance.md) | NIST CSF 2.0, NIST SP 800-53, MITRE ATT&CK, OWASP ASVS |
+| [API reference](docs/api.md) | Endpoints, authentication, errors, configuration |
+| [Runbook](docs/runbook.md) | Operating the scoring service |
 | [Data governance](docs/data-governance.md) | Provenance, privacy (GDPR), retention |
 | [Model card](docs/model-card.md) | Intended use, evaluation protocol, limitations |
 | [Decision records](docs/adr/README.md) | Why the design is the way it is |
@@ -371,13 +401,12 @@ tests/             unit and end-to-end tests
 1. **Milestone 2:** evaluate the autoencoder and gradient-boosting detectors on real data against
    the unseen-family benchmark; error analysis of the Bot miss; corrected-label support; a
    PyTorch/GPU autoencoder only if the CPU baseline proves insufficient (ADR 0007).
-2. **Milestone 3:** Live flow capture and real-time scoring service with Prometheus metrics.
+2. **Milestone 3:** Scoring service with Prometheus metrics, dashboard and replay demo (done, ADR 0010); live flow capture from a network interface (not started).
 3. **Milestone 4:** Threat-intelligence enrichment (AbuseIPDB, AlienVault OTX) with caching and a
    local blocklist fallback; ATT&CK-tagged alerts.
 4. **Milestone 5:** Drift detection (PSI/KS) gating scheduled retraining, with champion/challenger
    promotion and rollback.
-5. **Milestone 6:** Dashboard and a live demo (flow replay and live capture through the scoring
-   service); packet-level adversarial evaluation.
+5. **Milestone 6:** Live capture through the scoring service; packet-level adversarial evaluation.
 
 ## Contributing
 

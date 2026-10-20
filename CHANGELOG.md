@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Scoring service (Flask, waitress): `/v1/score`, `/v1/alerts`, `/v1/stats`, `/metrics`, health
+  and readiness probes, OpenAPI spec, bearer-key scopes, rate limiting, strict validation and
+  security headers; a same-origin dashboard; `ai-ids serve` and `ai-ids replay`; ADR 0010, API
+  reference and runbook.
 - Time-block bootstrap confidence intervals (recall, false-positive rate, precision) in every
   report, `ai-ids seeds` for multi-seed spread, and `fusion_mean` / `fusion_max` score-fusion
   detectors (ADR 0009).

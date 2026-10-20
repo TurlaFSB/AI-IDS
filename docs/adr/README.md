@@ -15,3 +15,4 @@ Superseded records are kept and marked, never deleted.
 | [0007](0007-cpu-autoencoder-first.md) | Autoencoder with scikit-learn on CPU first | Accepted |
 | [0008](0008-evasion-aware-training.md) | Evasion-aware training by attack-flow augmentation | Accepted |
 | [0009](0009-uncertainty-and-fusion.md) | Block-bootstrap uncertainty, multi-seed studies and score fusion | Accepted |
+| [0010](0010-scoring-service.md) | Scoring service, dashboard and replay demo | Accepted |
