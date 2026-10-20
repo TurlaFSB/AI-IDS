@@ -38,9 +38,10 @@ def http_post(
 ) -> dict[str, Any]:
     if not url.startswith(("http://", "https://")):
         raise ValueError("url must start with http:// or https://")
+    # The scheme was restricted to http(s) above, so file: and custom schemes cannot reach urlopen.
     request = urllib.request.Request(url, data=body, headers=headers, method="POST")  # noqa: S310
     try:
-        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310
+        with urllib.request.urlopen(request, timeout=timeout) as response:  # noqa: S310  # nosec B310
             parsed = json.loads(response.read())
     except urllib.error.HTTPError as error:
         if error.code == 429:
