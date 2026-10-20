@@ -31,7 +31,6 @@ evaluation, calibrated false-positive rates, and integrity-checked models.
 - [Roadmap](#roadmap)
 - [Contributing](#contributing)
 - [Citation and acknowledgements](#citation-and-acknowledgements)
-- [AI assistance disclosure](#ai-assistance-disclosure)
 - [License](#license)
 
 ## Why this project
@@ -235,8 +234,6 @@ University of New Brunswick. If you use results derived from it, cite:
 > I. Sharafaldin, A. H. Lashkari, and A. A. Ghorbani, "Toward Generating a New Intrusion Detection
 > Dataset and Intrusion Traffic Characterization," *4th International Conference on Information
 > Systems Security and Privacy (ICISSP)*, 2018.
-
-
 
 ## License
 
