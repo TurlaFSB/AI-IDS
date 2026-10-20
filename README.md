@@ -387,6 +387,16 @@ What this does and does not show:
 The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
 console output and `report.json` of the run, not recomputed.
 
+### Cross-dataset transfer (tooling ready, results pending)
+
+`ai-ids transfer --data <other dataset> --model-dir models/<run>/<detector> --out transfer.json`
+scores a second dataset with a saved model and its fixed threshold, with no refitting (ADR 0011).
+The report gives threshold-free metrics, the stored-threshold result with block-bootstrap
+intervals, and an oracle re-calibrated point that bounds what recalibration could recover.
+CSE-CIC-IDS2018 column names and labels are mapped to the CICIDS2017 ones; the mapping is
+untested against the real files, and the command fails with a list of missing features if it is
+wrong. No cross-dataset numbers have been produced yet, so none are claimed here.
+
 ## Limitations
 
 - CICIDS2017 has documented labelling and flow-construction problems
@@ -396,6 +406,8 @@ console output and `report.json` of the run, not recomputed.
 - Attacks in the dataset come from a small set of tools, so models learn tool signatures; the
   leave-one-family-out test above quantifies how little carries over to unseen families.
 - Very small classes (Heartbleed, Infiltration) have tiny test sets and unreliable recall.
+- Everything above is measured on one dataset (CICIDS2017); cross-dataset behaviour has not been
+  measured yet.
 - The evasion analysis is feature-space only (not packet-level); performance on other networks is
   unknown.
 - Model artifacts are pickle-based: load only verified artifacts from storage you control.

@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `ai-ids transfer`: score a different dataset (CSE-CIC-IDS2018 column names and labels are
+  supported) with a saved model and fixed threshold, reporting threshold-free metrics, the
+  stored-threshold result and an oracle re-calibrated upper bound (ADR 0011). No cross-dataset
+  results have been produced yet.
 - Scoring service (Flask, waitress): `/v1/score`, `/v1/alerts`, `/v1/stats`, `/metrics`, health
   and readiness probes, OpenAPI spec, bearer-key scopes, rate limiting, strict validation and
   security headers; a same-origin dashboard; `ai-ids serve` and `ai-ids replay`; ADR 0010, API

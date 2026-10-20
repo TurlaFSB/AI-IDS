@@ -20,8 +20,10 @@ from ai_ids.data.split import chronological_split
 from ai_ids.data.synthetic import generate_flows
 from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.evaluation.seeds import run_seed_study
+from ai_ids.evaluation.transfer import run_transfer
 from ai_ids.logging_config import configure_logging
 from ai_ids.pipeline import prepare_data, run_analysis, run_training
+from ai_ids.registry import load_detector
 from ai_ids.service.replay import ReplaySummary, replay_flows
 from ai_ids.service.server import build_app, serve
 from ai_ids.service.settings import ServiceSettings, SettingsError
@@ -65,6 +67,20 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
     analyze.add_argument("--out", type=Path, required=True, help="output JSON file")
     analyze.add_argument("--config", type=Path, help="YAML experiment config used for training")
+
+    transfer = sub.add_parser(
+        "transfer", help="score a different dataset with a saved model, without refitting"
+    )
+    transfer.add_argument("--data", type=Path, required=True, help="target CSV file or directory")
+    transfer.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
+    transfer.add_argument("--out", type=Path, required=True, help="output JSON file")
+    transfer.add_argument("--config", type=Path, help="YAML experiment config used for training")
+    transfer.add_argument("--max-rows", type=int, help="seeded random sample of the cleaned rows")
+    transfer.add_argument(
+        "--allow-missing-features",
+        action="store_true",
+        help="impute features the target lacks instead of failing (weakens the comparison)",
+    )
 
     serve_cmd = sub.add_parser("serve", help="run the scoring service and dashboard")
     serve_cmd.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
@@ -239,6 +255,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"fpr={test['false_positive_rate']:.4f} split_verified="
             f"{analysis['split_check']['verified']}"
         )
+        return 0
+
+    if args.command == "transfer":
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        key = os.environ.get(HMAC_KEY_ENV)
+        detector = load_detector(args.model_dir, hmac_key=key.encode() if key else None)
+        result = run_transfer(
+            args.data,
+            args.model_dir,
+            config,
+            detector,
+            allow_missing=args.allow_missing_features,
+            max_rows=args.max_rows,
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(result, indent=2, default=str) + "\n")
+        for name in ("stored_threshold", "oracle_recalibrated"):
+            point = result[name]
+            print(
+                f"{result['detector']} [{name}]: recall={point['recall']:.4f} "
+                f"fpr={point['false_positive_rate']:.4f} precision={point['precision']:.4f} "
+                f"pr_auc={point['pr_auc']:.4f}"
+            )
         return 0
 
     if args.command == "checksum":

@@ -1,0 +1,175 @@
+"""Cross-dataset evaluation: score a second dataset with a model trained on the first.
+
+Nothing is refitted and the alert threshold is the one fixed at training time, so the result
+answers "what happens if this model is deployed on different traffic". Two further numbers separate
+the causes of any drop: the threshold-free metrics (ranking quality) and an *oracle* operating point
+re-calibrated on the target's own benign traffic, which uses target labels and is therefore an upper
+bound for what recalibration could recover, never a deployable setting.
+"""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Any
+
+import numpy as np
+import pandas as pd
+
+from ai_ids.config import TrainConfig
+from ai_ids.data.integrity import dataset_checksums
+from ai_ids.data.loader import (
+    CATEGORY,
+    IS_ATTACK,
+    LABEL,
+    TIMESTAMP,
+    CleaningReport,
+    feature_columns,
+    load_dataset,
+)
+from ai_ids.evaluation.metrics import (
+    binary_report,
+    breakdown_by_group,
+    macro_recall,
+    per_class_recall,
+    threshold_for_fpr,
+)
+from ai_ids.evaluation.uncertainty import block_bootstrap
+from ai_ids.models.detectors import BaseDetector
+
+
+def prepare_target(
+    path: Path,
+    *,
+    pm_fix_before_hour: int | None = None,
+    dayfirst: bool = True,
+    max_rows: int | None = None,
+    seed: int = 0,
+) -> tuple[pd.DataFrame, CleaningReport, dict[str, Any]]:
+    """Load and clean the target dataset; optionally keep a seeded random sample of its rows.
+
+    The 12-hour repair used for CICIDS2017 timestamps is off by default because other datasets
+    use a 24-hour clock.
+    """
+    frame, cleaning = load_dataset(path, pm_fix_before_hour=pm_fix_before_hour, dayfirst=dayfirst)
+    sampling: dict[str, Any] = {"max_rows": max_rows, "rows_before": len(frame)}
+    if max_rows is not None and len(frame) > max_rows:
+        frame = frame.sample(n=max_rows, random_state=seed).sort_values(TIMESTAMP, kind="stable")
+        frame = frame.reset_index(drop=True)
+    sampling["rows_after"] = len(frame)
+    return frame, cleaning, sampling
+
+
+def feature_coverage(
+    frame: pd.DataFrame, features: list[str], *, allow_missing: bool
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Check the target has the model's features; optionally add the absent ones as missing."""
+    missing = [name for name in features if name not in frame.columns]
+    coverage: dict[str, Any] = {
+        "model_features": len(features),
+        "present": len(features) - len(missing),
+        "missing": missing,
+        "unused_target_columns": sorted(set(feature_columns(frame)) - set(features)),
+    }
+    if missing and not allow_missing:
+        raise ValueError(
+            f"the target dataset lacks {len(missing)} of the model's {len(features)} features "
+            f"(first: {missing[:8]}). Unmatched target columns: "
+            f"{coverage['unused_target_columns'][:12]}. Fix the column mapping, or pass "
+            "allow_missing to impute them from training medians (this weakens the comparison)."
+        )
+    if missing:
+        frame = frame.assign(**dict.fromkeys(missing, np.nan))
+    return frame, coverage
+
+
+def _operating_point(
+    frame: pd.DataFrame, y_true: np.ndarray, scores: np.ndarray, threshold: float
+) -> dict[str, Any]:
+    y_pred = scores > threshold
+    result: dict[str, Any] = dict(binary_report(y_true, scores, threshold))
+    result["per_category_recall"] = per_class_recall(frame[CATEGORY], y_pred, y_true)
+    per_attack = per_class_recall(frame[LABEL], y_pred, y_true)
+    result["per_attack_recall"] = per_attack
+    result["macro_recall"] = macro_recall(per_attack)
+    return result
+
+
+def evaluate_transfer(
+    detector: BaseDetector,
+    frame: pd.DataFrame,
+    config: TrainConfig,
+    *,
+    allow_missing: bool = False,
+) -> dict[str, Any]:
+    """Evaluate a fitted, calibrated detector on a different dataset without any refitting."""
+    if detector.threshold_ is None:
+        raise ValueError("the detector has no stored threshold")
+    features = list(detector.feature_names_)
+    frame, coverage = feature_coverage(frame, features, allow_missing=allow_missing)
+    y_true = frame[IS_ATTACK].to_numpy(dtype=bool)
+    if not y_true.any() or y_true.all():
+        raise ValueError("the target dataset must contain both benign and attack flows")
+
+    scores = detector.score(frame[features])
+    stored = float(detector.threshold_)
+    y_pred = scores > stored
+    benign_scores = scores[~y_true]
+
+    report: dict[str, Any] = {
+        "detector": detector.name,
+        "target_flows": len(frame),
+        "target_benign": int((~y_true).sum()),
+        "target_attacks": int(y_true.sum()),
+        "label_counts": {str(k): int(v) for k, v in frame[LABEL].value_counts().items()},
+        "feature_coverage": coverage,
+        "stored_threshold": _operating_point(frame, y_true, scores, stored),
+        "oracle_recalibrated": {
+            "note": (
+                "threshold chosen from the target's own benign labels at the training target "
+                "false-positive rate; an upper bound, not a deployable setting"
+            ),
+            **_operating_point(
+                frame, y_true, scores, threshold_for_fpr(benign_scores, config.target_fpr)
+            ),
+        },
+        "benign_score_quantiles": {
+            f"p{q}": float(np.percentile(benign_scores, q)) for q in (50, 90, 99, 99.9)
+        },
+    }
+    if TIMESTAMP in frame.columns and frame[TIMESTAMP].notna().any():
+        days = frame[TIMESTAMP].dt.strftime("%Y-%m-%d")
+        report["by_day"] = breakdown_by_group(days, y_true, y_pred)
+        allowed = {"block_minutes", "n_resamples", "level"}
+        params = {k: v for k, v in config.bootstrap.items() if k in allowed}
+        report["confidence_intervals"] = block_bootstrap(
+            frame[TIMESTAMP], y_true, y_pred, seed=config.seed, **params
+        )
+    return report
+
+
+def run_transfer(
+    data_path: Path,
+    model_dir: Path,
+    config: TrainConfig,
+    detector: BaseDetector,
+    *,
+    allow_missing: bool = False,
+    max_rows: int | None = None,
+    pm_fix_before_hour: int | None = None,
+) -> dict[str, Any]:
+    """Load the target dataset, evaluate, and record what was evaluated and how."""
+    frame, cleaning, sampling = prepare_target(
+        data_path,
+        pm_fix_before_hour=pm_fix_before_hour,
+        dayfirst=config.timestamp_dayfirst,
+        max_rows=max_rows,
+        seed=config.seed,
+    )
+    report = evaluate_transfer(detector, frame, config, allow_missing=allow_missing)
+    report["model_dir"] = str(model_dir)
+    report["target_dataset"] = {
+        "files_sha256": dataset_checksums(data_path),
+        "cleaning": cleaning.to_dict(),
+        "sampling": sampling,
+    }
+    return report

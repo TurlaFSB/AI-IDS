@@ -41,6 +41,20 @@ _TAXONOMY: dict[str, AttackInfo] = {
         ("bot", "botnet", "T1071"),
         ("infiltration", "infiltration", "T1105"),
         ("heartbleed", "exploit", "T1190"),
+        # CSE-CIC-IDS2018 names. "Infilteration" is the dataset's own spelling.
+        ("dos attacks goldeneye", "dos", "T1499"),
+        ("dos attacks slowloris", "dos", "T1499"),
+        ("dos attacks slowhttptest", "dos", "T1499"),
+        ("dos attacks hulk", "dos", "T1499"),
+        ("ddos attacks loic http", "ddos", "T1498"),
+        ("ddos attack hoic", "ddos", "T1498"),
+        ("ddos attack loic udp", "ddos", "T1498"),
+        ("brute force web", "web_attack", "T1110"),
+        ("brute force xss", "web_attack", "T1190"),
+        ("sql injection", "web_attack", "T1190"),
+        ("ftp bruteforce", "brute_force", "T1110"),
+        ("ssh bruteforce", "brute_force", "T1110"),
+        ("infilteration", "infiltration", "T1105"),
     )
 }
 

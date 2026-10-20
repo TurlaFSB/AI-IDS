@@ -55,11 +55,76 @@ def normalize_columns(df: pd.DataFrame, source: str = "frame") -> pd.DataFrame:
     return out
 
 
+# CSE-CIC-IDS2018 exports the same CICFlowMeter features under abbreviated names. Each alias maps
+# to the CICIDS2017 name (after `clean_column_name`), so one trained model can score both. This map
+# is written from the published column lists and has not been checked against every file: any
+# feature a model needs that is still missing after aliasing is reported by `ai-ids transfer`.
+_ALIASES_2018 = {
+    "dst_port": "destination_port",
+    "tot_fwd_pkts": "total_fwd_packets",
+    "tot_bwd_pkts": "total_backward_packets",
+    "totlen_fwd_pkts": "total_length_of_fwd_packets",
+    "totlen_bwd_pkts": "total_length_of_bwd_packets",
+    "fwd_pkt_len_max": "fwd_packet_length_max",
+    "fwd_pkt_len_min": "fwd_packet_length_min",
+    "fwd_pkt_len_mean": "fwd_packet_length_mean",
+    "fwd_pkt_len_std": "fwd_packet_length_std",
+    "bwd_pkt_len_max": "bwd_packet_length_max",
+    "bwd_pkt_len_min": "bwd_packet_length_min",
+    "bwd_pkt_len_mean": "bwd_packet_length_mean",
+    "bwd_pkt_len_std": "bwd_packet_length_std",
+    "flow_byts_s": "flow_bytes_s",
+    "flow_pkts_s": "flow_packets_s",
+    "fwd_iat_tot": "fwd_iat_total",
+    "bwd_iat_tot": "bwd_iat_total",
+    "fwd_header_len": "fwd_header_length",
+    "bwd_header_len": "bwd_header_length",
+    "fwd_pkts_s": "fwd_packets_s",
+    "bwd_pkts_s": "bwd_packets_s",
+    "pkt_len_min": "min_packet_length",
+    "pkt_len_max": "max_packet_length",
+    "pkt_len_mean": "packet_length_mean",
+    "pkt_len_std": "packet_length_std",
+    "pkt_len_var": "packet_length_variance",
+    "fin_flag_cnt": "fin_flag_count",
+    "syn_flag_cnt": "syn_flag_count",
+    "rst_flag_cnt": "rst_flag_count",
+    "psh_flag_cnt": "psh_flag_count",
+    "ack_flag_cnt": "ack_flag_count",
+    "urg_flag_cnt": "urg_flag_count",
+    "ece_flag_cnt": "ece_flag_count",
+    "pkt_size_avg": "average_packet_size",
+    "fwd_seg_size_avg": "avg_fwd_segment_size",
+    "bwd_seg_size_avg": "avg_bwd_segment_size",
+    "fwd_byts_b_avg": "fwd_avg_bytes_bulk",
+    "fwd_pkts_b_avg": "fwd_avg_packets_bulk",
+    "fwd_blk_rate_avg": "fwd_avg_bulk_rate",
+    "bwd_byts_b_avg": "bwd_avg_bytes_bulk",
+    "bwd_pkts_b_avg": "bwd_avg_packets_bulk",
+    "bwd_blk_rate_avg": "bwd_avg_bulk_rate",
+    "subflow_fwd_pkts": "subflow_fwd_packets",
+    "subflow_fwd_byts": "subflow_fwd_bytes",
+    "subflow_bwd_pkts": "subflow_bwd_packets",
+    "subflow_bwd_byts": "subflow_bwd_bytes",
+    "init_fwd_win_byts": "init_win_bytes_forward",
+    "init_bwd_win_byts": "init_win_bytes_backward",
+    "fwd_act_data_pkts": "act_data_pkt_fwd",
+    "fwd_seg_size_min": "min_seg_size_forward",
+}
+
+
+def harmonise_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Rename CSE-CIC-IDS2018 column names to their CICIDS2017 equivalents (no-op otherwise)."""
+    present = set(df.columns)
+    renames = {a: b for a, b in _ALIASES_2018.items() if a in present and b not in present}
+    return df.rename(columns=renames) if renames else df
+
+
 def read_csv_file(path: Path) -> pd.DataFrame:
     # CICIDS2017 CSVs are not valid UTF-8 (web-attack labels contain a Windows-1252 dash);
     # latin-1 decodes every byte, and label normalisation absorbs the artefact.
     df = pd.read_csv(path, encoding="latin-1", low_memory=False, skipinitialspace=True)
-    return normalize_columns(df, path.name)
+    return harmonise_columns(normalize_columns(df, path.name))
 
 
 def _parse_timestamps(
@@ -88,7 +153,9 @@ def clean_flows(
         raise ValueError(f"missing required column {LABEL!r}")
 
     rows_in = len(df)
-    out = df.dropna(subset=[LABEL]).copy()
+    out = df.dropna(subset=[LABEL])
+    # Some exports repeat the header line inside the data (CSE-CIC-IDS2018 does); drop those rows.
+    out = out[out[LABEL].astype(str).str.strip().str.lower() != "label"].copy()
     rows_missing_label = rows_in - len(out)
 
     raw_labels = out[LABEL].astype(str)
