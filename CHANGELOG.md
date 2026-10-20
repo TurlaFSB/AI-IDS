@@ -17,6 +17,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`timestamp_dayfirst`).
 
 ### Added
+- Evasion-aware training (ADR 0008): `random_forest_aug` and `hist_gradient_boosting_aug` train on
+  perturbed copies of attack flows using magnitudes disjoint from the evaluation ones;
+  `configs/robustness.yaml` compares them with the standard detectors.
+- Four-detector results, host-level false-positive evidence and the evasion findings from the
+  second real run in the README and model card.
 - Autoencoder detector (scikit-learn MLP, CPU; ADR 0007) with training diagnostics in the report,
   and per-category recall in every report for like-for-like comparison of detectors.
 - Leave-one-attack-family-out results from the first real run in the README and model card.

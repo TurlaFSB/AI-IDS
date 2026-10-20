@@ -12,10 +12,11 @@ from pathlib import Path
 from typing import Any
 
 import numpy as np
+import pandas as pd
 import sklearn
 
 from ai_ids import __version__
-from ai_ids.config import TrainConfig
+from ai_ids.config import AUGMENTED_SUFFIX, TrainConfig
 from ai_ids.data.integrity import dataset_checksums
 from ai_ids.data.loader import (
     CATEGORY,
@@ -37,8 +38,10 @@ from ai_ids.evaluation.metrics import (
     per_class_recall,
     threshold_for_fpr,
 )
-from ai_ids.evaluation.robustness import evasion_report
+from ai_ids.evaluation.robustness import augment_attack_flows, evasion_report
 from ai_ids.models.detectors import (
+    AugmentedHistGradientBoostingDetector,
+    AugmentedRandomForestDetector,
     AutoencoderDetector,
     BaseDetector,
     HistGradientBoostingDetector,
@@ -65,6 +68,18 @@ def _git_commit() -> str | None:
     return result.stdout.strip() or None
 
 
+def _augmentation_params(config: TrainConfig) -> dict[str, Any]:
+    allowed = {"slowdowns", "paddings", "fraction"}
+    unknown = sorted(set(config.augmentation) - allowed)
+    if unknown:
+        raise ValueError(f"unknown augmentation keys: {unknown}")
+    params: dict[str, Any] = dict(config.augmentation)
+    for key in ("slowdowns", "paddings"):
+        if key in params:
+            params[key] = tuple(float(v) for v in params[key])
+    return params
+
+
 def build_detectors(config: TrainConfig) -> list[BaseDetector]:
     factories: dict[str, Callable[[], BaseDetector]] = {
         "random_forest": lambda: RandomForestDetector(seed=config.seed, **config.random_forest),
@@ -75,6 +90,12 @@ def build_detectors(config: TrainConfig) -> list[BaseDetector]:
             seed=config.seed, **config.hist_gradient_boosting
         ),
         "autoencoder": lambda: AutoencoderDetector(seed=config.seed, **config.autoencoder),
+        "random_forest_aug": lambda: AugmentedRandomForestDetector(
+            seed=config.seed, **config.random_forest
+        ),
+        "hist_gradient_boosting_aug": lambda: AugmentedHistGradientBoostingDetector(
+            seed=config.seed, **config.hist_gradient_boosting
+        ),
     }
     return [factories[name]() for name in config.detectors]
 
@@ -223,11 +244,21 @@ def run_training(
         "models": {},
     }
 
+    augmented_train: pd.DataFrame | None = None
     for detector in detectors:
         logger.info("training", extra={"fields": {"detector": detector.name}})
-        detector.fit(split.train[features], split.train[CATEGORY])
+        train_frame = split.train
+        if detector.name.endswith(AUGMENTED_SUFFIX):
+            if augmented_train is None:
+                augmented_train = augment_attack_flows(
+                    split.train, features, seed=config.seed, **_augmentation_params(config)
+                )
+            train_frame = augmented_train
+        detector.fit(train_frame[features], train_frame[CATEGORY])
         result = evaluate_detector(detector, split, features, config)
-        training_info = getattr(detector, "training_info_", None)
+        training_info = dict(getattr(detector, "training_info_", None) or {})
+        if train_frame is not split.train:
+            training_info["augmented_training_rows"] = len(train_frame) - len(split.train)
         if training_info:
             result["training_info"] = training_info
         report["models"][detector.name] = result

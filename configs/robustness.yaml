@@ -1,0 +1,21 @@
+# Compares standard and evasion-aware training. Detectors ending in _aug are trained on the
+# training split plus perturbed copies of attack flows, using perturbation magnitudes that differ
+# from the ones used for evaluation (see ai_ids.evaluation.robustness).
+seed: 42
+target_fpr: 0.01
+operating_fprs: [0.001, 0.01, 0.05]
+split_fractions: [0.60, 0.15, 0.25]
+timestamp_pm_fix_before_hour: 8
+detectors: [random_forest, random_forest_aug, hist_gradient_boosting, hist_gradient_boosting_aug]
+random_forest:
+  n_estimators: 200
+  max_depth: null
+  min_samples_leaf: 1
+hist_gradient_boosting:
+  max_iter: 200
+  learning_rate: 0.1
+  max_leaf_nodes: 31
+augmentation:
+  slowdowns: [3, 7]
+  paddings: [32, 128, 512]
+  fraction: 0.5

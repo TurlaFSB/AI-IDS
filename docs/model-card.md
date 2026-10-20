@@ -34,8 +34,8 @@ medians, identifiers excluded from features.
 
 ## Results
 
-Results below are for the Random Forest and Isolation Forest. The gradient-boosting detector and
-the autoencoder were added afterwards and have not yet been evaluated on real data.
+The first table is the original Random Forest / Isolation Forest run. A second full run (below)
+reproduces it exactly and adds the gradient-boosting detector and the autoencoder.
 
 Test set: 630,647 flows (106,485 attacks, 16.9%), after cleaning 3,119,345 rows to 2,522,525.
 Thresholds calibrated for a 1% false-positive rate on benign validation flows.
@@ -62,6 +62,24 @@ slowhttptest 0.992 (1,308); FTP-Patator 0.999 (1,485); SSH-Patator 0.984 (806); 
 
 Isolation Forest detects slowhttptest (0.724) and, on 10 flows, infiltration (0.8); everything
 else is below 0.15.
+
+### All four detectors (second full run)
+
+| Detector | Recall | Precision | FPR (test) | PR-AUC | Macro recall |
+|---|---|---|---|---|---|
+| Random Forest | 0.990 | 0.713 | 0.081 | 0.993 | 0.870 |
+| Gradient boosting | 0.868 | 0.985 | 0.0026 | 0.988 | 0.578 |
+| Isolation Forest | 0.040 | 0.195 | 0.034 | 0.354 | 0.133 |
+| Autoencoder | 0.153 | 0.294 | 0.074 | 0.459 | 0.057 |
+
+Per-category recall (test flows): botnet 490: 0.00 for all four. Brute force 2,291: RF 0.99, GB
+0.92, IF 0.00, AE 0.00. DDoS 32,005: 1.00, 1.00, 0.07, 0.01. DoS 48,441: 0.99, 0.73, 0.04, 0.24.
+Port scan 22,706: 1.00, 0.99, 0.00, 0.19. Web attacks 538: 0.99, 0.88, 0.00, 0.00. Heartbleed (4):
+RF 1.00, others 0.00. Infiltration (10): RF 0.60, GB 0.00, IF 0.80, AE 0.10.
+
+Gradient boosting meets its 1% target comfortably (0.26% measured), unlike the other detectors
+(RF 8.1%, AE 7.4%, IF 3.4%). Because false-positive measurement depends on noisy labels (next
+section), this does not by itself show that boosting is the better detector.
 
 ### Calibration under temporal shift
 
@@ -92,7 +110,7 @@ the range (five ports with 35-40 benign flows each have 80-89% of them flagged; 
 Population Stability Index between training and test benign traffic shows no significant drift
 (0 of 78 features above 0.25; 5 moderate, maximum 0.125, all on backward packet-length features).
 
-**Interpretation (hypothesis, unverified):** the concentration points to attack-adjacent flows
+**Interpretation (supported by the evidence below, not proven):** the concentration points to attack-adjacent flows
 labelled benign (scanning from the compromised Thursday-afternoon infiltration victim, and the web
 server's side of the Friday DDoS and port-scan traffic) rather than genuine benign behaviour, in
 line with the labelling and flow-construction artefacts documented for CICIDS2017. The reported
@@ -100,8 +118,16 @@ line with the labelling and flow-construction artefacts documented for CICIDS201
 distinct ports and hosts of each top false-positive source, and the false-positive rate with the
 top hosts excluded (a sensitivity analysis, not a performance claim).
 
-Bot (490 test flows) is missed entirely at the 1% operating point; recall at the other operating
-points is reported per attack in `report.json`.
+Host-level evidence (`ai-ids analyze`, Random Forest): `192.168.10.8` produced 28,589 false
+positives (67.3%) spread over **exactly 1,000 distinct destination ports and 11 hosts** between
+2017-07-06 15:10 and 16:48, the signature of a default port scan; `192.168.10.50` produced 13,265
+(31.2%) toward **12,450 distinct destination ports on 3 hosts** between 2017-07-06 15:23 and
+2017-07-07 16:16, which a server does not initiate on its own and looks like the reverse-direction
+view of attack connections. With the top 1, 2 and 3 hosts excluded the false-positive rate is
+3.02%, 0.144% and 0.099% (a sensitivity analysis, not a performance claim). A detector that flags
+these flows is penalised by the labels; one that ignores them is flattered.
+
+Bot (490 test flows) is detected by none of the four detectors at the 1% operating point.
 
 Random Forest scores take only about 200 distinct values (share of trees voting "attack"), which
 makes low-FPR operating points degenerate (see ADR 0005).
@@ -136,7 +162,19 @@ Every report includes a feature-space evasion-sensitivity analysis: attack flows
 combination) and recall is re-measured at the already-calibrated threshold. This is a
 **sensitivity indicator, not a packet-level attack**: perturbations act on derived flow
 features, assume the attacker can reshape them without breaking the attack, and touch only
-features present in the data. Results on real data are pending.
+features present in the data. The 1,024-byte padding is not capped at the 1,500-byte Ethernet MTU.
+
+Results, Random Forest at its calibrated threshold (baseline recall 0.990):
+
+| Perturbation | Recall |
+|---|---|
+| Slow down 2x / 5x / 10x | 0.979 / 0.965 / 0.950 |
+| Pad every packet by 64 / 256 / 1,024 bytes | 0.513 / 0.531 / 0.508 |
+| Slow down 5x and pad 256 bytes | 0.599 |
+
+Per family at 64 bytes (baseline in brackets): port scan 0.014 (0.997), web attacks 0.076 (0.987),
+DDoS 0.585 (0.998), DoS 0.690 (0.991), brute force 0.933 (0.994), botnet 0.000 (0.000). The model
+relies on absolute packet sizes. Results for the other detectors are in `report.json`.
 
 ## Limitations and risks
 

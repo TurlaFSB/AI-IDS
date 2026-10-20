@@ -153,7 +153,8 @@ ai-ids holdout   leave-one-attack-family-out generalisation test (slow)
 ai-ids checksum  print SHA-256 digests of dataset files
 ```
 
-Experiments are configured in YAML ([configs/default.yaml](configs/default.yaml)): seed, target
+Experiments are configured in YAML ([configs/default.yaml](configs/default.yaml); `light.yaml` for
+laptops, `robustness.yaml` to compare standard and evasion-aware training, ADR 0008): seed, target
 false-positive rate, operating points, split fractions, and model hyperparameters. Unknown keys
 are rejected.
 
@@ -198,6 +199,30 @@ Alert thresholds were calibrated for a **1% false-positive rate** on validation 
 Scoring latency, single thread: Random Forest 13.3 ms per single flow (p50), 30.6 ms per batch
 of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,600 flows/s).
 
+### All four detectors (second full run)
+
+A repeat run reproduces the Random Forest and Isolation Forest results exactly (fixed seeds) and
+adds the gradient-boosting detector and the autoencoder. Same split, same 1% validation target.
+
+| Detector | Recall | Precision | False-positive rate (test) | PR-AUC | Macro recall |
+|---|---|---|---|---|---|
+| Random Forest | 0.990 | 0.713 | 0.081 | 0.993 | 0.870 |
+| Gradient boosting | 0.868 | **0.985** | **0.0026** | 0.988 | 0.578 |
+| Isolation Forest | 0.040 | 0.195 | 0.034 | 0.354 | 0.133 |
+| Autoencoder | 0.153 | 0.294 | 0.074 | 0.459 | 0.057 |
+
+Recall by attack category on the test split:
+
+| Category (test flows) | Random Forest | Gradient boosting | Isolation Forest | Autoencoder |
+|---|---|---|---|---|
+| Botnet (490) | 0.00 | 0.00 | 0.00 | 0.00 |
+| Brute force (2,291) | 0.99 | 0.92 | 0.00 | 0.00 |
+| DDoS (32,005) | 1.00 | 1.00 | 0.07 | 0.01 |
+| DoS (48,441) | 0.99 | 0.73 | 0.04 | 0.24 |
+| Port scan (22,706) | 1.00 | 0.99 | 0.00 | 0.19 |
+| Web attacks (538) | 0.99 | 0.88 | 0.00 | 0.00 |
+| Heartbleed (4) / Infiltration (10) | 1.00 / 0.60 | 0.00 / 0.00 | 0.00 / 0.80 | 0.00 / 0.10 |
+
 **What these numbers mean, honestly:**
 
 - **The false-positive rate did not hold, and the misses are concentrated.** Thresholds targeted
@@ -210,14 +235,30 @@ of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,
   traffic. Per-feature drift (PSI) is small (no feature above 0.25, maximum 0.12), so this is not
   broad distribution shift.
 
-  **Hypothesis, not yet verified:** these are attack-adjacent flows that the dataset labels
-  benign, for example scanning from the compromised Thursday-afternoon infiltration victim and
-  the web server's side of Friday's DDoS and port-scan traffic, consistent with the labelling and
-  flow-construction artefacts documented for CICIDS2017. If true, the measured 8.1% mixes real
-  false alarms with label noise; it is still the number we report. `ai-ids analyze` adds the
-  evidence needed to test this (time windows and distinct ports and hosts per false-positive
-  source, and the false-positive rate with the top hosts excluded, as a sensitivity analysis
-  only).
+  **The evidence points to label noise, though it is not proof.** `192.168.10.8` produced 28,589
+  false positives spanning exactly 1,000 distinct destination ports across 11 hosts between 15:10
+  and 16:48 on Thursday, which is the signature of a default port scan: real scan traffic that the
+  dataset labels benign. `192.168.10.50` produced 13,265 toward 12,450 distinct destination ports
+  on only 3 hosts, which a server does not do on its own and looks like the reverse-direction view
+  of attack connections. With these two hosts excluded the false-positive rate is 0.14%; that
+  figure is a sensitivity analysis, not a performance claim. A consequence: a detector that flags
+  these flows is penalised by the labels, and one that ignores them looks better than it may be.
+- **Gradient boosting has the best operating behaviour.** It catches 87% of attacks at a 0.26%
+  false-positive rate (below the 1% target) with 98.5% precision, against the Random Forest's
+  99% recall at 8.1% FPR and 71% precision. Whether that gap is real or partly because it
+  ignores the mislabelled clusters is open (`ai-ids analyze` on its saved model answers it).
+  It misses Heartbleed, Infiltration and Bot entirely and catches 73% of DoS.
+- **The unsupervised detectors do not work well enough here.** The autoencoder ranks better than
+  the Isolation Forest (PR-AUC 0.46 versus 0.35) but at 15% recall and a 7.4% false-positive rate
+  it is not usable; it detects some DoS (0.24) and port scan (0.19) and little else. These are
+  negative results and stay in the write-up. No detector detects the Bot family.
+- **Packet-size shaping defeats the Random Forest in feature space.** At the calibrated threshold,
+  recall falls from 0.990 to 0.513 when every packet carries 64 extra bytes (0.531 at 256 B, 0.508 at
+  1,024 B). Slowing flows down costs little (0.979, 0.965, 0.950 at 2x, 5x, 10x). Per family, at 64
+  bytes: port scan 0.997 to 0.014, web attacks 0.987 to 0.076, DDoS 0.998 to 0.585, DoS 0.991
+  to 0.690, brute force 0.994 to 0.933. The model leans on absolute packet sizes. This is a
+  feature-space analysis (derived features are shifted consistently; protocol limits such as the
+  1,500-byte Ethernet MTU are not modelled), so read it as a sensitivity indicator.
 - **Headline recall is dominated by three attack types.** DDoS, DoS Hulk and PortScan are 92% of
   attack flows. Averaged evenly over attack types, Random Forest recall is 0.87. Bot is missed
   entirely (recall 0.00, 490 test flows).

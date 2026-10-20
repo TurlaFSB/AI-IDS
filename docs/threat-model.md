@@ -32,7 +32,7 @@ for the planned scoring service. Status values: **Mitigated**, **Partial**, **Pl
 | T7 | Information disclosure | Secrets committed to the repository | `.gitignore`, `.env.example` only, pre-commit private-key detection, GitHub secret scanning | Mitigated |
 | T8 | Denial of service | Oversized or high-rate input exhausts the scoring service | Input validation, rate limiting, resource limits | Planned |
 | T9 | Repudiation | No record of who retrained or promoted a model | Manifest records creation time, environment, and metrics; promotion audit log | Partial |
-| T10 | Evasion (ML-specific) | Attacker shapes traffic to stay below the threshold | Per-attack recall reporting reveals blind spots; feature-space evasion-sensitivity analysis (timing and packet-size reshaping) in every report; multiple detector types. Packet-level adversarial evaluation is not yet done | Partial |
+| T10 | Evasion (ML-specific) | Attacker shapes traffic to stay below the threshold | Measured: shifting packet sizes by 64 bytes cuts Random Forest recall from 0.99 to 0.51 in feature space (slowing flows costs little); per-attack recall, multiple detector types, and evasion-aware training (under evaluation) are the mitigations. Packet-level adversarial evaluation is not yet done | Open (measured weakness) |
 | T11 | Tampering (supply chain) | Malicious or vulnerable dependency, build action, or base image | Hash-locked dependencies installed with `--require-hashes`, SHA-pinned GitHub Actions, digest-pinned base image, `pip-audit`, `bandit`, Trivy image scan, SBOM, Dependabot (ADR 0006) | Mitigated |
 
 ## Residual risks

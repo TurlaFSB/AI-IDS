@@ -307,3 +307,15 @@ class AutoencoderDetector(BaseDetector):
 
     def set_inference_threads(self, n_jobs: int) -> None:
         self._threads = n_jobs
+
+
+class AugmentedRandomForestDetector(RandomForestDetector):
+    """Random Forest trained on evasion-augmented attack flows (augmented by the pipeline)."""
+
+    name = "random_forest_aug"
+
+
+class AugmentedHistGradientBoostingDetector(HistGradientBoostingDetector):
+    """Gradient boosting trained on evasion-augmented attack flows (see the pipeline)."""
+
+    name = "hist_gradient_boosting_aug"

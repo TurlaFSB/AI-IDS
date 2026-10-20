@@ -13,3 +13,4 @@ Superseded records are kept and marked, never deleted.
 | [0005](0005-gradient-boosting-for-continuous-scores.md) | Add gradient boosting for continuous scores | Accepted |
 | [0006](0006-supply-chain-integrity.md) | Supply-chain integrity controls | Accepted |
 | [0007](0007-cpu-autoencoder-first.md) | Autoencoder with scikit-learn on CPU first | Accepted |
+| [0008](0008-evasion-aware-training.md) | Evasion-aware training by attack-flow augmentation | Accepted |

@@ -19,7 +19,7 @@ from functools import partial
 import numpy as np
 import pandas as pd
 
-from ai_ids.data.loader import CATEGORY
+from ai_ids.data.loader import CATEGORY, IS_ATTACK
 from ai_ids.models.detectors import BaseDetector
 
 # Slowing a flow down by k stretches durations and inter-arrival times and divides rates by k.
@@ -191,3 +191,45 @@ def evasion_report(
         "baseline": baseline,
         "perturbations": results,
     }
+
+
+# Training magnitudes deliberately differ from the evaluation magnitudes above, so that
+# robustness is measured on perturbations the model has not been trained on.
+TRAIN_SLOWDOWNS = (3.0, 7.0)
+TRAIN_PADDINGS = (32.0, 128.0, 512.0)
+
+
+def augment_attack_flows(
+    train: pd.DataFrame,
+    features: list[str],
+    *,
+    slowdowns: tuple[float, ...] = TRAIN_SLOWDOWNS,
+    paddings: tuple[float, ...] = TRAIN_PADDINGS,
+    fraction: float = 0.5,
+    seed: int = 42,
+) -> pd.DataFrame:
+    """Return `train` plus perturbed copies of a random share of its attack flows.
+
+    Benign flows are never modified. The sampled attack flows are split evenly across the
+    perturbations (each copy is perturbed once), so the training set grows by about
+    `fraction` times the number of attack flows.
+    """
+    if not 0.0 < fraction <= 1.0:
+        raise ValueError("fraction must be in (0, 1]")
+    transforms: list[Callable[[pd.DataFrame], pd.DataFrame]] = [
+        partial(slow_down, factor=k) for k in slowdowns
+    ]
+    transforms += [partial(pad_packets, extra_bytes=b) for b in paddings]
+    if not transforms:
+        raise ValueError("at least one perturbation is required")
+    attacks = train[train[IS_ATTACK]]
+    if attacks.empty:
+        return train
+    rng = np.random.default_rng(seed)
+    chosen = rng.permutation(len(attacks))[: int(len(attacks) * fraction)]
+    parts = [train]
+    for transform, indices in zip(transforms, np.array_split(chosen, len(transforms)), strict=True):
+        copies = attacks.iloc[indices].copy()
+        copies[features] = transform(copies[features])
+        parts.append(copies)
+    return pd.concat(parts, ignore_index=True)

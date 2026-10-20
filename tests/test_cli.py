@@ -164,3 +164,37 @@ def test_analyze_rejects_a_different_split(synthetic_csv: Path, tmp_path: Path) 
     ]
     with pytest.raises(ValueError, match="split_fractions"):
         main(argv)
+
+
+def test_augmented_detectors_train_and_report(synthetic_csv: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "detectors: [random_forest, random_forest_aug, hist_gradient_boosting_aug]\n"
+        "random_forest: {n_estimators: 10}\n"
+        "hist_gradient_boosting: {max_iter: 10}\n"
+        "augmentation: {slowdowns: [3], paddings: [32, 128], fraction: 0.4}\n"
+    )
+    out = tmp_path / "run"
+    argv = ["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]
+    assert main(argv) == 0
+    models = json.loads((out / "report.json").read_text())["models"]
+    assert set(models) == {"random_forest", "random_forest_aug", "hist_gradient_boosting_aug"}
+    assert "training_info" not in models["random_forest"]
+    assert models["random_forest_aug"]["training_info"]["augmented_training_rows"] > 0
+    assert (out / "random_forest_aug" / "model.joblib").exists()
+
+
+def test_config_rejects_unknown_augmentation_keys(synthetic_csv: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("detectors: [random_forest_aug]\naugmentation: {bogus: 1}\n")
+    argv = [
+        "train",
+        "--data",
+        str(synthetic_csv),
+        "--out",
+        str(tmp_path / "o"),
+        "--config",
+        str(cfg),
+    ]
+    with pytest.raises(ValueError, match="augmentation"):
+        main(argv)

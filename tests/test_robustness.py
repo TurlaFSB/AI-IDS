@@ -5,6 +5,9 @@ import pytest
 from ai_ids.data.loader import CATEGORY, IS_ATTACK, feature_columns
 from ai_ids.data.split import chronological_split
 from ai_ids.evaluation.robustness import (
+    TRAIN_PADDINGS,
+    TRAIN_SLOWDOWNS,
+    augment_attack_flows,
     default_perturbations,
     evasion_report,
     modified_columns,
@@ -158,3 +161,42 @@ def test_padding_keeps_related_features_consistent() -> None:
     # a direction with no packets stays at zero
     assert out["bwd_packet_length_max"].tolist() == [90.0, 0.0]
     assert out["avg_bwd_segment_size"].tolist() == [70.0, 0.0]
+
+
+def test_augmentation_adds_perturbed_attack_copies_only(cleaned: pd.DataFrame) -> None:
+    features = feature_columns(cleaned)
+    train = cleaned.iloc[:4000].reset_index(drop=True)
+    n_attacks = int(train[IS_ATTACK].sum())
+    out = augment_attack_flows(train, features, fraction=0.5, seed=3)
+
+    added = out.iloc[len(train) :]
+    assert len(added) == int(n_attacks * 0.5)
+    assert added[IS_ATTACK].all()  # benign flows are never duplicated or modified
+    assert out.iloc[: len(train)].equals(train)
+    # the copies really are perturbed
+    assert not np.allclose(
+        added["flow_duration"].to_numpy(),
+        train.loc[train[IS_ATTACK], "flow_duration"].iloc[: len(added)].to_numpy(),
+    )
+
+
+def test_augmentation_is_deterministic_and_validated(cleaned: pd.DataFrame) -> None:
+    features = feature_columns(cleaned)
+    train = cleaned.iloc[:3000].reset_index(drop=True)
+    a = augment_attack_flows(train, features, seed=5)
+    b = augment_attack_flows(train, features, seed=5)
+    assert a.equals(b)
+    with pytest.raises(ValueError, match="fraction"):
+        augment_attack_flows(train, features, fraction=0.0)
+    with pytest.raises(ValueError, match="perturbation"):
+        augment_attack_flows(train, features, slowdowns=(), paddings=())
+    benign_only = train[~train[IS_ATTACK]]
+    assert augment_attack_flows(benign_only, features) is benign_only
+
+
+def test_training_and_evaluation_magnitudes_are_disjoint() -> None:
+    evaluation = {p.name for p in default_perturbations()}
+    for k in TRAIN_SLOWDOWNS:
+        assert f"slowdown_x{k:g}" not in evaluation
+    for b in TRAIN_PADDINGS:
+        assert f"padding_{b:g}B" not in evaluation

@@ -16,6 +16,10 @@ DEFAULT_DETECTORS = (
 )
 
 
+AUGMENTED_SUFFIX = "_aug"
+AVAILABLE_DETECTORS = (*DEFAULT_DETECTORS, "random_forest_aug", "hist_gradient_boosting_aug")
+
+
 @dataclass(frozen=True)
 class TrainConfig:
     seed: int = 42
@@ -29,6 +33,7 @@ class TrainConfig:
     isolation_forest: dict[str, Any] = field(default_factory=dict)
     hist_gradient_boosting: dict[str, Any] = field(default_factory=dict)
     autoencoder: dict[str, Any] = field(default_factory=dict)
+    augmentation: dict[str, Any] = field(default_factory=dict)
     detectors: tuple[str, ...] = DEFAULT_DETECTORS
     evasion_analysis: bool = True
     holdout: dict[str, Any] = field(default_factory=dict)
@@ -46,9 +51,9 @@ class TrainConfig:
         config = cls(**values)
         if not 0.0 < config.target_fpr < 1.0:
             raise ValueError("target_fpr must be in (0, 1)")
-        unknown_detectors = sorted(set(config.detectors) - set(DEFAULT_DETECTORS))
+        unknown_detectors = sorted(set(config.detectors) - set(AVAILABLE_DETECTORS))
         if unknown_detectors or not config.detectors:
-            raise ValueError(f"detectors must be a non-empty subset of {DEFAULT_DETECTORS}")
+            raise ValueError(f"detectors must be a non-empty subset of {AVAILABLE_DETECTORS}")
         return config
 
     @classmethod
