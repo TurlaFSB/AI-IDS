@@ -13,7 +13,7 @@ fi
 for version in "${versions[@]}"; do
   echo "=== Python ${version} ==="
   env_dir=".venv-matrix/py${version}"
-  uv venv --quiet --python "${version}" "${env_dir}"
+  uv venv --quiet --clear --python "${version}" "${env_dir}"
   uv pip install --quiet --python "${env_dir}/bin/python" --require-hashes -r requirements/dev.txt
   uv pip install --quiet --python "${env_dir}/bin/python" --no-deps -e .
   "${env_dir}/bin/ruff" check src tests

@@ -14,3 +14,4 @@ Superseded records are kept and marked, never deleted.
 | [0006](0006-supply-chain-integrity.md) | Supply-chain integrity controls | Accepted |
 | [0007](0007-cpu-autoencoder-first.md) | Autoencoder with scikit-learn on CPU first | Accepted |
 | [0008](0008-evasion-aware-training.md) | Evasion-aware training by attack-flow augmentation | Accepted |
+| [0009](0009-uncertainty-and-fusion.md) | Block-bootstrap uncertainty, multi-seed studies and score fusion | Accepted |

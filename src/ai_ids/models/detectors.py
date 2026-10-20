@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from collections.abc import Sequence
 from typing import Any, ClassVar, Self
 
 import numpy as np
@@ -61,6 +62,10 @@ class BaseDetector(ABC):
         if self.threshold_ is None:
             raise RuntimeError("detector has no calibrated threshold")
         return self.score(X) > self.threshold_
+
+    def select_calibration_rows(self, val_benign: pd.DataFrame) -> pd.DataFrame:
+        """Benign validation rows to calibrate the threshold on (all of them by default)."""
+        return val_benign
 
     @abstractmethod
     def set_inference_threads(self, n_jobs: int) -> None:
@@ -319,3 +324,84 @@ class AugmentedHistGradientBoostingDetector(HistGradientBoostingDetector):
     """Gradient boosting trained on evasion-augmented attack flows (see the pipeline)."""
 
     name = "hist_gradient_boosting_aug"
+
+
+class _FusionDetector(BaseDetector):
+    """Combine already-fitted detectors by averaging or maximising their benign percentiles.
+
+    Component scores live on different scales, so each is mapped to the fraction of benign
+    reference scores it exceeds (a value in [0, 1]); benign flows are then roughly uniform and
+    attacks sit near 1 for every component. The reference uses one interleaved half of the benign
+    validation rows and the threshold is calibrated on the other half, so the percentile map is
+    never fitted on the rows used to set the alert threshold.
+    """
+
+    rule: ClassVar[str]
+
+    def __init__(self, components: Sequence[BaseDetector]) -> None:
+        super().__init__()
+        if len(components) < 2:
+            raise ValueError("fusion needs at least two detectors")
+        if len({tuple(c.feature_names_) for c in components}) != 1:
+            raise ValueError("fusion components must use the same features")
+        self.components = list(components)
+        self.feature_names_ = list(components[0].feature_names_)
+        self.references_: list[FloatArray] = []
+
+    def fit(self, X: pd.DataFrame, categories: pd.Series) -> Self:
+        raise TypeError("fusion wraps already-fitted detectors; call fit_reference instead")
+
+    def fit_reference(self, val_benign: pd.DataFrame) -> Self:
+        rows = val_benign.iloc[::2]
+        if rows.empty:
+            raise ValueError("no benign validation rows for the fusion reference")
+        self.references_ = [np.sort(c.score(rows)) for c in self.components]
+        return self
+
+    def select_calibration_rows(self, val_benign: pd.DataFrame) -> pd.DataFrame:
+        return val_benign.iloc[1::2]
+
+    def _combine(self, ranks: FloatArray) -> FloatArray:
+        raise NotImplementedError
+
+    def score(self, X: pd.DataFrame) -> FloatArray:
+        if not self.references_:
+            raise RuntimeError(f"{self.name} detector has no reference; call fit_reference")
+        aligned = self._align(X)
+        ranks = np.vstack(
+            [
+                np.searchsorted(reference, component.score(aligned), side="right") / len(reference)
+                for component, reference in zip(self.components, self.references_, strict=True)
+            ]
+        )
+        return self._combine(ranks)
+
+    def set_inference_threads(self, n_jobs: int) -> None:
+        for component in self.components:
+            component.set_inference_threads(n_jobs)
+
+
+class FusionMeanDetector(_FusionDetector):
+    """Average of component benign percentiles: an alert needs broad agreement."""
+
+    name = "fusion_mean"
+    rule = "mean"
+
+    def _combine(self, ranks: FloatArray) -> FloatArray:
+        return np.asarray(ranks.mean(axis=0), dtype=np.float64)
+
+
+class FusionMaxDetector(_FusionDetector):
+    """Maximum of component benign percentiles: any one component can raise an alert."""
+
+    name = "fusion_max"
+    rule = "max"
+
+    def _combine(self, ranks: FloatArray) -> FloatArray:
+        return np.asarray(ranks.max(axis=0), dtype=np.float64)
+
+
+FUSION_RULES: dict[str, type[_FusionDetector]] = {
+    FusionMeanDetector.rule: FusionMeanDetector,
+    FusionMaxDetector.rule: FusionMaxDetector,
+}

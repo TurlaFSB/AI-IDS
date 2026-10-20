@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Added
+- Time-block bootstrap confidence intervals (recall, false-positive rate, precision) in every
+  report, `ai-ids seeds` for multi-seed spread, and `fusion_mean` / `fusion_max` score-fusion
+  detectors (ADR 0009).
+
 ### Changed
 - Evasion-aware training is now symmetric (perturbed copies drawn from benign and attack flows alike)
   and trains on forward-only padding by default; the first attack-only design is documented as having

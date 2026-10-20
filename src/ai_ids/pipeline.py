@@ -39,7 +39,9 @@ from ai_ids.evaluation.metrics import (
     threshold_for_fpr,
 )
 from ai_ids.evaluation.robustness import augment_flows, evasion_report
+from ai_ids.evaluation.uncertainty import block_bootstrap
 from ai_ids.models.detectors import (
+    FUSION_RULES,
     AugmentedHistGradientBoostingDetector,
     AugmentedRandomForestDetector,
     AutoencoderDetector,
@@ -78,6 +80,31 @@ def _augmentation_params(config: TrainConfig) -> dict[str, Any]:
         if key in params:
             params[key] = tuple(float(v) for v in params[key])
     return params
+
+
+def _bootstrap_params(config: TrainConfig) -> dict[str, Any]:
+    allowed = {"block_minutes", "n_resamples", "level"}
+    unknown = sorted(set(config.bootstrap) - allowed)
+    if unknown:
+        raise ValueError(f"unknown bootstrap keys: {unknown}")
+    return dict(config.bootstrap)
+
+
+def _training_frame(
+    detector: BaseDetector,
+    split: DatasetSplit,
+    features: list[str],
+    config: TrainConfig,
+    cache: dict[str, pd.DataFrame],
+) -> pd.DataFrame:
+    """The frame a detector trains on: the training split, augmented for `_aug` detectors."""
+    if not detector.name.endswith(AUGMENTED_SUFFIX):
+        return split.train
+    if "augmented" not in cache:
+        cache["augmented"] = augment_flows(
+            split.train, features, seed=config.seed, **_augmentation_params(config)
+        )
+    return cache["augmented"]
 
 
 def build_detectors(config: TrainConfig) -> list[BaseDetector]:
@@ -131,7 +158,7 @@ def evaluate_detector(
     calibrate: bool = True,
 ) -> dict[str, Any]:
     """Evaluate on the test split. With `calibrate=False` the stored threshold is used as is."""
-    val_benign = split.val[~split.val[IS_ATTACK]]
+    val_benign = detector.select_calibration_rows(split.val[~split.val[IS_ATTACK]])
     val_scores = detector.score(val_benign[features])
     if calibrate:
         threshold = detector.calibrate(val_scores, config.target_fpr)
@@ -179,6 +206,13 @@ def evaluate_detector(
         report["by_day"] = breakdown_by_group(days, y_true, y_pred)
         hours = split.test[TIMESTAMP].dt.strftime("%Y-%m-%d %H:00")
         report["by_hour"] = breakdown_by_group(hours, y_true, y_pred)
+        report["confidence_intervals"] = block_bootstrap(
+            split.test[TIMESTAMP],
+            y_true,
+            y_pred,
+            seed=config.seed,
+            **_bootstrap_params(config),
+        )
     profile = false_positive_profile(split.test, y_true, y_pred, config.fp_profile_columns)
     if "source_ip" in config.fp_profile_columns:
         profile["host_concentration"] = host_concentration(split.test, y_true, y_pred)
@@ -249,21 +283,11 @@ def run_training(
         "models": {},
     }
 
-    augmented_train: pd.DataFrame | None = None
-    for detector in detectors:
-        logger.info("training", extra={"fields": {"detector": detector.name}})
-        train_frame = split.train
-        if detector.name.endswith(AUGMENTED_SUFFIX):
-            if augmented_train is None:
-                augmented_train = augment_flows(
-                    split.train, features, seed=config.seed, **_augmentation_params(config)
-                )
-            train_frame = augmented_train
-        detector.fit(train_frame[features], train_frame[CATEGORY])
+    cache: dict[str, pd.DataFrame] = {}
+    trained: dict[str, BaseDetector] = {}
+
+    def record(detector: BaseDetector, training_info: dict[str, Any]) -> None:
         result = evaluate_detector(detector, split, features, config)
-        training_info = dict(getattr(detector, "training_info_", None) or {})
-        if train_frame is not split.train:
-            training_info["augmented_training_rows"] = len(train_frame) - len(split.train)
         if training_info:
             result["training_info"] = training_info
         report["models"][detector.name] = result
@@ -278,6 +302,24 @@ def run_training(
             },
             hmac_key=hmac_key,
         )
+
+    for detector in detectors:
+        logger.info("training", extra={"fields": {"detector": detector.name}})
+        train_frame = _training_frame(detector, split, features, config, cache)
+        detector.fit(train_frame[features], train_frame[CATEGORY])
+        info = dict(getattr(detector, "training_info_", None) or {})
+        if train_frame is not split.train:
+            info["augmented_training_rows"] = len(train_frame) - len(split.train)
+        trained[detector.name] = detector
+        record(detector, info)
+
+    if config.fusion:
+        components = [trained[name] for name in config.fusion["components"]]
+        val_benign_features = split.val[~split.val[IS_ATTACK]][features]
+        for rule in config.fusion.get("rules", ["mean"]):
+            logger.info("fusing", extra={"fields": {"rule": rule}})
+            fusion = FUSION_RULES[rule](components).fit_reference(val_benign_features)
+            record(fusion, {"components": [c.name for c in components], "rule": rule})
 
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "report.json").write_text(json.dumps(report, indent=2, default=str) + "\n")

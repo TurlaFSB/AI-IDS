@@ -198,3 +198,100 @@ def test_config_rejects_unknown_augmentation_keys(synthetic_csv: Path, tmp_path:
     ]
     with pytest.raises(ValueError, match="augmentation"):
         main(argv)
+
+
+def test_fusion_and_confidence_intervals_in_report(synthetic_csv: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "detectors: [random_forest, hist_gradient_boosting]\n"
+        "random_forest: {n_estimators: 10}\n"
+        "hist_gradient_boosting: {max_iter: 10}\n"
+        "evasion_analysis: false\n"
+        "fusion: {components: [random_forest, hist_gradient_boosting], rules: [mean, max]}\n"
+        "bootstrap: {n_resamples: 100, block_minutes: 10}\n"
+    )
+    out = tmp_path / "run"
+    argv = ["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]
+    assert main(argv) == 0
+    models = json.loads((out / "report.json").read_text())["models"]
+    assert set(models) == {"random_forest", "hist_gradient_boosting", "fusion_mean", "fusion_max"}
+    assert models["fusion_mean"]["training_info"]["components"] == [
+        "random_forest",
+        "hist_gradient_boosting",
+    ]
+    intervals = models["random_forest"]["confidence_intervals"]
+    assert intervals["block_minutes"] == 10
+    assert (
+        intervals["recall"]["low"] <= intervals["recall"]["estimate"] <= intervals["recall"]["high"]
+    )
+    assert (out / "fusion_max" / "model.joblib").exists()
+
+
+def test_fusion_config_validation() -> None:
+    with pytest.raises(ValueError, match=r"fusion\.components"):
+        TrainConfig.from_mapping(
+            {"detectors": ["random_forest"], "fusion": {"components": ["random_forest"]}}
+        )
+    with pytest.raises(ValueError, match=r"fusion\.rules"):
+        TrainConfig.from_mapping(
+            {
+                "detectors": ["random_forest", "isolation_forest"],
+                "fusion": {
+                    "components": ["random_forest", "isolation_forest"],
+                    "rules": ["median"],
+                },
+            }
+        )
+    with pytest.raises(ValueError, match="fusion keys"):
+        TrainConfig.from_mapping({"fusion": {"bogus": 1}})
+
+
+def test_unknown_bootstrap_keys_rejected(synthetic_csv: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "detectors: [isolation_forest]\n"
+        "isolation_forest: {n_estimators: 5}\n"
+        "bootstrap: {bogus: 1}\n"
+    )
+    argv = [
+        "train",
+        "--data",
+        str(synthetic_csv),
+        "--out",
+        str(tmp_path / "o"),
+        "--config",
+        str(cfg),
+    ]
+    with pytest.raises(ValueError, match="bootstrap"):
+        main(argv)
+
+
+def test_seed_study_summarises_across_seeds(synthetic_csv: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "detectors: [random_forest, random_forest_aug]\n"
+        "random_forest: {n_estimators: 10}\n"
+        "augmentation: {slowdowns: [3], paddings: [32], fraction: 0.3}\n"
+    )
+    out = tmp_path / "seeds.json"
+    argv = [
+        "seeds",
+        "--data",
+        str(synthetic_csv),
+        "--out",
+        str(out),
+        "--config",
+        str(cfg),
+        "--seeds",
+        "1",
+        "2",
+    ]
+    assert main(argv) == 0
+    study = json.loads(out.read_text())
+    assert study["seeds"] == [1, 2]
+    assert set(study["detectors"]) == {"random_forest", "random_forest_aug"}
+    recall = study["detectors"]["random_forest"]["recall"]
+    assert len(recall["values"]) == 2
+    assert recall["min"] <= recall["mean"] <= recall["max"]
+    assert recall["std"] >= 0.0
+    assert "padding_64B_benign_fpr" in study["detectors"]["random_forest_aug"]

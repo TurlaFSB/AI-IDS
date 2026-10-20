@@ -34,6 +34,8 @@ class TrainConfig:
     hist_gradient_boosting: dict[str, Any] = field(default_factory=dict)
     autoencoder: dict[str, Any] = field(default_factory=dict)
     augmentation: dict[str, Any] = field(default_factory=dict)
+    fusion: dict[str, Any] = field(default_factory=dict)
+    bootstrap: dict[str, Any] = field(default_factory=dict)
     detectors: tuple[str, ...] = DEFAULT_DETECTORS
     evasion_analysis: bool = True
     holdout: dict[str, Any] = field(default_factory=dict)
@@ -54,7 +56,22 @@ class TrainConfig:
         unknown_detectors = sorted(set(config.detectors) - set(AVAILABLE_DETECTORS))
         if unknown_detectors or not config.detectors:
             raise ValueError(f"detectors must be a non-empty subset of {AVAILABLE_DETECTORS}")
+        cls._validate_fusion(config)
         return config
+
+    @staticmethod
+    def _validate_fusion(config: TrainConfig) -> None:
+        if not config.fusion:
+            return
+        unknown = sorted(set(config.fusion) - {"components", "rules"})
+        if unknown:
+            raise ValueError(f"unknown fusion keys: {unknown}")
+        components = list(config.fusion.get("components", []))
+        if len(components) < 2 or not set(components) <= set(config.detectors):
+            raise ValueError("fusion.components needs at least two entries from `detectors`")
+        rules = list(config.fusion.get("rules", ["mean"]))
+        if not rules or not set(rules) <= {"mean", "max"}:
+            raise ValueError("fusion.rules must be a non-empty subset of ['mean', 'max']")
 
     @classmethod
     def from_yaml(cls, path: Path) -> TrainConfig:

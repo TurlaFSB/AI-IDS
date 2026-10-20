@@ -48,9 +48,9 @@ model artifacts.
 |---|---|
 | Data | CICIDS2017 loader: label normalisation, duplicate and non-finite value handling, timestamp repair |
 | Splitting | Per-class chronological train / validation / test split (no random splits) |
-| Detectors | Random Forest (supervised, multi-class), gradient boosting (supervised, continuous scores), Isolation Forest and an autoencoder (both unsupervised, benign-only training) behind one scoring contract |
+| Detectors | Random Forest (supervised, multi-class), gradient boosting (supervised, continuous scores), Isolation Forest and an autoencoder (both unsupervised, benign-only training), optional evasion-aware variants and mean/max score fusion, all behind one scoring contract |
 | Operating point | Alert threshold calibrated on held-out benign traffic to a target false-positive rate |
-| Metrics | Recall, precision, F1, FPR, MCC, ROC-AUC, PR-AUC, per-attack recall with support, scoring latency (p50/p95/p99) |
+| Metrics | Recall, precision, F1, FPR, MCC, ROC-AUC, PR-AUC, per-attack recall with support, scoring latency (p50/p95/p99), time-block bootstrap confidence intervals, multi-seed spread |
 | Model registry | SHA-256 manifest per artifact, optional HMAC-SHA256 signature, recorded environment versions |
 | Threat mapping | Each attack type mapped to a MITRE ATT&CK technique for alert enrichment |
 | Robustness | Feature-space evasion-sensitivity analysis (timing and packet-size reshaping) per detector, leave-one-attack-family-out test, per-day FPR and benign-drift (PSI) diagnostics |
@@ -148,6 +148,7 @@ See [docs/data-governance.md](docs/data-governance.md) for provenance, privacy, 
 ```text
 ai-ids synth     write a synthetic CICIDS2017-style CSV
 ai-ids train     load, clean, split, train, calibrate, evaluate, and save detectors
+ai-ids seeds     repeat training over several seeds and report the spread
 ai-ids analyze   re-run evaluation diagnostics on a saved model without retraining
 ai-ids holdout   leave-one-attack-family-out generalisation test (slow)
 ai-ids checksum  print SHA-256 digests of dataset files
@@ -179,6 +180,9 @@ report.json   metrics, operating points, per-attack recall, per-day FPR, drift, 
   FPR is measured, not assumed ([ADR 0004](docs/adr/0004-fpr-calibrated-threshold.md)).
 - **Accuracy is never the headline metric.** Traffic is heavily imbalanced; recall, FPR, and
   PR-AUC are reported, with per-attack recall and support.
+- **Uncertainty.** Each report carries 95% time-block bootstrap intervals for recall, false-positive
+  rate and precision (whole 5-minute blocks are resampled, because flows within an attack run are
+  correlated; ADR 0009), and `ai-ids seeds` measures spread across random seeds.
 - **Latency** is measured per scoring call, single inference thread, after warm-up.
 - Results are reported at several operating points (0.1%, 1%, 5% target FPR), per capture day,
   per capture day and hour, with a profile of where false positives concentrate, and with a

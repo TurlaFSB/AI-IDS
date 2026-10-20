@@ -232,6 +232,17 @@ explanation is that the robust model no longer depends on packet sizes and there
 mislabelled scan traffic; `ai-ids analyze` on the saved model tests this. All results are
 feature-space and single-seed, and they cover the modelled perturbation families only.
 
+## Uncertainty and fusion (method)
+
+Every report includes 95% time-block bootstrap intervals (5-minute blocks, 2,000 resamples) for
+recall, false-positive rate and precision at the calibrated threshold, because flows within an
+attack run are correlated and a flow-level bootstrap would understate uncertainty. `ai-ids seeds`
+repeats training over several seeds and reports mean, standard deviation, minimum and maximum; the
+chronological split is fixed, so that spread is model randomness only. `fusion_mean` and
+`fusion_max` combine the two evasion-aware detectors through benign-percentile scores, with the
+percentile map and the alert threshold fitted on disjoint halves of the benign validation rows
+(ADR 0009). Results for all three are pending.
+
 ## Limitations and risks
 
 - **Dataset artefacts:** CIC-IDS-2017 has documented labelling and flow-construction issues,

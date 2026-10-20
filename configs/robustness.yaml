@@ -25,3 +25,10 @@ augmentation:
   slowdowns: [3, 7]
   paddings: [32, 128, 512]
   fraction: 0.25
+fusion:
+  components: [random_forest_aug, hist_gradient_boosting_aug]
+  rules: [mean, max]
+bootstrap:
+  block_minutes: 5
+  n_resamples: 2000
+  level: 0.95
