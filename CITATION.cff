@@ -1,0 +1,17 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+title: "AI-IDS: Machine-learning network intrusion detection with adaptive retraining"
+type: software
+authors:
+  - family-names: Verma
+    given-names: Pranav
+version: 0.1.0
+date-released: 2026-10-20
+license: MIT
+repository-code: "https://github.com/TurlaFSB/AI-IDS"
+keywords:
+  - intrusion detection
+  - machine learning
+  - network security
+  - anomaly detection
+  - CICIDS2017

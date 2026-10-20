@@ -1,0 +1,12 @@
+# Architecture decision records
+
+Significant design decisions are recorded here in a lightweight
+[MADR](https://adr.github.io/madr/)-style format: context, decision, consequences.
+Superseded records are kept and marked, never deleted.
+
+| ADR | Title | Status |
+|---|---|---|
+| [0001](0001-classical-models-first.md) | Start with classical models, add deep learning as a comparison | Accepted |
+| [0002](0002-chronological-split.md) | Per-class chronological splitting | Accepted |
+| [0003](0003-integrity-checked-artifacts.md) | Integrity-checked model artifacts | Accepted |
+| [0004](0004-fpr-calibrated-threshold.md) | Alert threshold calibrated to a target false-positive rate | Accepted |

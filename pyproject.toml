@@ -27,6 +27,7 @@ dev = [
     "mypy>=1.11",
     "pandas-stubs",
     "types-PyYAML",
+    "pre-commit>=3.7",
 ]
 
 [project.scripts]
