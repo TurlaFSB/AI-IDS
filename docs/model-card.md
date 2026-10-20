@@ -179,25 +179,36 @@ relies on absolute packet sizes. Gradient boosting behaves similarly (0.868 clea
 
 ### Evasion-aware training (ADR 0008)
 
-Standard versus augmented training, same split, calibration and evaluation
-(`configs/robustness.yaml`). Augmented models train on perturbed copies of half the attack flows,
-with magnitudes (3x, 7x slowdown; 32, 128, 512 B padding) disjoint from the evaluation ones.
+**First design (attack flows only, padding of both directions): failed its control.** Augmented
+models trained on perturbed copies of half the attack flows. Recall under padding rose, but the
+control (the same perturbation applied to a sample of 100,000 benign test flows) showed why.
+Attack recall and benign false-positive rate (FPR) at each detector's calibrated threshold:
 
-| Detector | Recall | FPR | Precision | Slow 2x / 5x / 10x | Pad 64 / 256 / 1,024 B | Slow 5x + pad 256 B |
-|---|---|---|---|---|---|---|
-| Random Forest | 0.990 | 0.081 | 0.713 | 0.979 / 0.965 / 0.950 | 0.513 / 0.531 / 0.508 | 0.599 |
-| Random Forest, aug | 0.992 | 0.069 | 0.744 | 0.992 / 0.991 / 0.976 | 1.000 / 1.000 / 1.000 | 1.000 |
-| Gradient boosting | 0.868 | 0.0026 | 0.985 | 0.858 / 0.835 / 0.785 | 0.466 / 0.460 / 0.415 | 0.458 |
-| Gradient boosting, aug | 0.900 | 0.031 | 0.856 | 0.892 / 0.887 / 0.876 | 0.992 / 0.941 / 0.633 | 0.877 |
+| Detector | Clean | Pad both directions 64 / 256 / 1,024 B | Forward-only pad 64 / 256 / 1,024 B | Slow 2x / 5x / 10x |
+|---|---|---|---|---|
+| Random Forest, recall | 0.990 | 0.513 / 0.531 / 0.508 | 0.567 / 0.591 / 0.547 | 0.979 / 0.965 / 0.950 |
+| Random Forest, benign FPR | 0.083 | 0.000 / 0.003 / 0.001 | 0.011 / 0.008 / 0.001 | 0.083 / 0.083 / 0.085 |
+| RF aug (attack-only), recall | 0.992 | 1.000 / 1.000 / 1.000 | 0.995 / 0.995 / 0.995 | 0.992 / 0.991 / 0.976 |
+| RF aug (attack-only), benign FPR | 0.071 | **0.242 / 0.502 / 0.704** | 0.070 / 0.112 / 0.163 | 0.080 / 0.115 / 0.155 |
+| Gradient boosting, recall | 0.868 | 0.466 / 0.460 / 0.415 | 0.517 / 0.508 / 0.534 | 0.858 / 0.835 / 0.785 |
+| Gradient boosting, benign FPR | 0.003 | 0 / 0 / 0 | 0 / 0 / 0 | 0.002 / 0.020 / **0.036** |
+| GB aug (attack-only), recall | 0.900 | 0.992 / 0.941 / 0.633 | 0.742 / 0.751 / 0.760 | 0.892 / 0.887 / 0.876 |
+| GB aug (attack-only), benign FPR | 0.031 | 0.063 / 0.071 / 0.090 | 0.006 / 0.008 / 0.006 | 0.040 / 0.056 / 0.056 |
 
-Interpretation, with caution. Augmentation sharply raises recall under padding, but (1) gradient
-boosting's false-positive rate rose from 0.26% to 3.1% and its PR-AUC fell from 0.988 to 0.975, a
-real cost; (2) the augmented Random Forest scoring exactly 1.000 at every padding level, even beyond
-the training range, is a warning sign that it may flag any padded flow regardless of whether it is
-an attack. The control for that is the false-positive rate on perturbed benign flows, which every
-report now includes (`benign_false_positive_rate` per perturbation), together with forward-only
-padding (what an attacker can actually control) and random per-flow forward padding, neither of
-which is used in training. Until those results are in, these numbers do not establish robustness.
+Reading it: the augmented Random Forest's perfect recall under padding of both directions is a
+shortcut, because it flags 24% to 70% of padded benign flows; "perturbed means attack" is exactly
+what attack-only augmentation teaches. On forward-only padding (the attacker-controlled direction,
+never trained on) the gains are real but modest and costly: Random Forest recall 0.57 to 0.995 while
+benign FPR rises with padding (7.0% to 16.3%), and gradient boosting recall about 0.52 to 0.75 with
+no rise in benign FPR but a clean FPR of 3.1% instead of 0.26%. The plain Random Forest's benign FPR
+falls to about zero under padding: its false alarms depend on packet sizes too. Plain gradient
+boosting is hurt by slowing flows, which makes benign flows resemble slow DoS (benign flagged 3.6%
+at 10x).
+
+**Redesign (pending results).** Copies are drawn from benign and attack flows alike, so a flow being
+perturbed carries no label information, and training uses forward-only padding plus slowdowns, so
+padding of both directions, the combined perturbation and per-flow random padding are never
+trained on. Same evaluation, benign control included. Results are not yet available.
 
 ## Limitations and risks
 

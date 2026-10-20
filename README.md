@@ -275,24 +275,27 @@ Recall by attack category on the test split:
   pooled over flows, versus 0.99 on attacks the model was trained on. The Isolation Forest, which
   never sees attacks, does worse on every family (DDoS 0.07, DoS 0.04, port scan 0.001, the
   others 0.00). In-distribution recall mostly measures recognition of known attack tools.
-- **Evasion-aware training repairs the padding weakness in feature space, with caveats.**
-  Training on slowed and padded copies of attack flows (magnitudes different from those used in
-  evaluation; ADR 0008) changed results as follows:
+- **The first evasion-aware training design failed its control; a redesign is under test.**
+  Training on slowed and padded copies of *attack* flows only (ADR 0008) lifted recall under padding
+  (Random Forest 0.51 to 1.00), but applying the same padding to *benign* flows showed why: the
+  augmented Random Forest flagged 24%, 50% and 70% of benign flows padded by 64, 256 and 1,024 bytes
+  (clean rate 7.1%). It had learned "padded means attack", not robustness. On forward-only padding,
+  the attacker-controlled direction and a type it never trained on, the gains were real but
+  modest and carried a cost:
 
-  | Detector | Clean recall | Clean FPR | Recall after padding every packet by 64 / 256 / 1,024 B |
-  |---|---|---|---|
-  | Random Forest | 0.990 | 0.081 | 0.513 / 0.531 / 0.508 |
-  | Random Forest, augmented | 0.992 | 0.069 | 1.000 / 1.000 / 1.000 |
-  | Gradient boosting | 0.868 | 0.0026 | 0.466 / 0.460 / 0.415 |
-  | Gradient boosting, augmented | 0.900 | 0.031 | 0.992 / 0.941 / 0.633 |
+  | Detector | Recall, forward padding 64 / 256 / 1,024 B | Benign flows flagged |
+  |---|---|---|
+  | Random Forest | 0.567 / 0.591 / 0.547 | 1.1% / 0.8% / 0.1% |
+  | RF, attack-only augmentation | 0.995 / 0.995 / 0.995 | 7.0% / 11.2% / 16.3% (clean 7.1%) |
+  | Gradient boosting | 0.517 / 0.508 / 0.534 | 0% |
+  | GB, attack-only augmentation | 0.742 / 0.751 / 0.760 | 0.6% / 0.8% / 0.6% (clean 3.1%) |
 
-  Two cautions apply. Gradient boosting paid for robustness with its false-positive rate (0.26% to
-  3.1%) and precision (98.5% to 85.6%). And a recall of exactly 1.000 at every padding level,
-  including 1,024 bytes beyond anything it trained on, suggests the augmented Random Forest may have
-  learned to flag anything padded instead of becoming robust. This is why the evasion analysis now
-  also applies each perturbation to benign flows (the false-positive rate under perturbation is the
-  control) and includes forward-only and random per-flow padding, which no detector is trained on.
-  Treat the table above as preliminary until those controls are reported.
+  The plain Random Forest's benign false-positive rate falls to about 0% under padding, so its
+  false alarms depend on packet sizes too. Plain gradient boosting is also hurt by slowing flows
+  (recall 0.785 and benign flows flagged 3.6% at 10x). The redesign perturbs benign and attack flows
+  alike so the perturbation carries no label information, and trains on forward-only padding so that
+  padding both directions is an unseen type; its results are pending
+  (`configs/robustness.yaml`).
 - **Random Forest scores are coarse.** The score is the share of trees voting "attack", so very
   low FPR targets collapse (at a 0.1% target the threshold saturates and nothing is flagged).
   A finer or calibrated score is needed for low-FPR operation.

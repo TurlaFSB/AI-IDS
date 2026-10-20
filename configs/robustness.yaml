@@ -1,6 +1,10 @@
 # Compares standard and evasion-aware training. Detectors ending in _aug are trained on the
-# training split plus perturbed copies of attack flows, using perturbation magnitudes that differ
-# from the ones used for evaluation (see ai_ids.evaluation.robustness).
+# training split plus perturbed copies of flows (ADR 0008):
+#   - symmetric: copies are drawn from benign and attack flows alike, so perturbation carries no
+#     label information (the first, attack-only design learned "padded means attack");
+#   - forward-only padding, the attacker-controlled direction, plus slowdowns;
+#   - magnitudes differ from the evaluation ones, and padding of both directions is never trained
+#     on, so the evaluation includes an unseen perturbation type.
 seed: 42
 target_fpr: 0.01
 operating_fprs: [0.001, 0.01, 0.05]
@@ -16,6 +20,8 @@ hist_gradient_boosting:
   learning_rate: 0.1
   max_leaf_nodes: 31
 augmentation:
+  mode: symmetric
+  padding_direction: forward
   slowdowns: [3, 7]
   paddings: [32, 128, 512]
-  fraction: 0.5
+  fraction: 0.25

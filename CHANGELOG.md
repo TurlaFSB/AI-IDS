@@ -7,6 +7,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- Evasion-aware training is now symmetric (perturbed copies drawn from benign and attack flows alike)
+  and trains on forward-only padding by default; the first attack-only design is documented as having
+  failed its benign control and remains reproducible via `configs/robustness_attack_only.yaml`.
 - The evasion analysis now applies every perturbation to benign flows as a control, and adds
   forward-only padding (consistent with whole-flow statistics, validated against packet-level
   simulation) and random per-flow forward padding as perturbation types never used in training.

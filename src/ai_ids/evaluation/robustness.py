@@ -366,37 +366,54 @@ TRAIN_SLOWDOWNS = (3.0, 7.0)
 TRAIN_PADDINGS = (32.0, 128.0, 512.0)
 
 
-def augment_attack_flows(
+AUGMENTATION_MODES = ("symmetric", "attack_only")
+PADDING_DIRECTIONS = ("forward", "both")
+
+
+def augment_flows(
     train: pd.DataFrame,
     features: list[str],
     *,
     slowdowns: tuple[float, ...] = TRAIN_SLOWDOWNS,
     paddings: tuple[float, ...] = TRAIN_PADDINGS,
-    fraction: float = 0.5,
+    fraction: float = 0.25,
+    mode: str = "symmetric",
+    padding_direction: str = "forward",
     seed: int = 42,
 ) -> pd.DataFrame:
-    """Return `train` plus perturbed copies of a random share of its attack flows.
+    """Return `train` plus perturbed copies of a random share of its flows.
 
-    Benign flows are never modified. The sampled attack flows are split evenly across the
-    perturbations (each copy is perturbed once), so the training set grows by about
-    `fraction` times the number of attack flows.
+    `symmetric` (default) samples copies uniformly from all flows, so a flow being perturbed
+    carries no information about its label: perturbed benign and perturbed attack flows appear in
+    the same proportion as in the training data. This is what prevents a detector from learning
+    "perturbed means attack". `attack_only` perturbs attack flows alone and is kept only to
+    reproduce the first, flawed design (see ADR 0008): it teaches exactly that shortcut.
+
+    Copies are split evenly across the perturbations (each is perturbed once), and
+    `padding_direction` selects forward-only padding (what an attacker controls, default) or
+    padding of both directions. The training set grows by about `fraction` of the sampled pool.
     """
     if not 0.0 < fraction <= 1.0:
         raise ValueError("fraction must be in (0, 1]")
+    if mode not in AUGMENTATION_MODES:
+        raise ValueError(f"mode must be one of {AUGMENTATION_MODES}")
+    if padding_direction not in PADDING_DIRECTIONS:
+        raise ValueError(f"padding_direction must be one of {PADDING_DIRECTIONS}")
+    pad = pad_forward_packets if padding_direction == "forward" else pad_packets
     transforms: list[Callable[[pd.DataFrame], pd.DataFrame]] = [
         partial(slow_down, factor=k) for k in slowdowns
     ]
-    transforms += [partial(pad_packets, extra_bytes=b) for b in paddings]
+    transforms += [partial(pad, extra_bytes=b) for b in paddings]
     if not transforms:
         raise ValueError("at least one perturbation is required")
-    attacks = train[train[IS_ATTACK]]
-    if attacks.empty:
+    pool = train[train[IS_ATTACK]] if mode == "attack_only" else train
+    if pool.empty:
         return train
     rng = np.random.default_rng(seed)
-    chosen = rng.permutation(len(attacks))[: int(len(attacks) * fraction)]
+    chosen = rng.permutation(len(pool))[: int(len(pool) * fraction)]
     parts = [train]
     for transform, indices in zip(transforms, np.array_split(chosen, len(transforms)), strict=True):
-        copies = attacks.iloc[indices].copy()
+        copies = pool.iloc[indices].copy()
         copies[features] = transform(copies[features])
         parts.append(copies)
     return pd.concat(parts, ignore_index=True)

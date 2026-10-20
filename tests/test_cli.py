@@ -172,7 +172,7 @@ def test_augmented_detectors_train_and_report(synthetic_csv: Path, tmp_path: Pat
         "detectors: [random_forest, random_forest_aug, hist_gradient_boosting_aug]\n"
         "random_forest: {n_estimators: 10}\n"
         "hist_gradient_boosting: {max_iter: 10}\n"
-        "augmentation: {slowdowns: [3], paddings: [32, 128], fraction: 0.4}\n"
+        "augmentation: {slowdowns: [3], paddings: [32, 128], fraction: 0.4, mode: symmetric}\n"
     )
     out = tmp_path / "run"
     argv = ["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]

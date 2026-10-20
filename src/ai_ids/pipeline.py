@@ -38,7 +38,7 @@ from ai_ids.evaluation.metrics import (
     per_class_recall,
     threshold_for_fpr,
 )
-from ai_ids.evaluation.robustness import augment_attack_flows, evasion_report
+from ai_ids.evaluation.robustness import augment_flows, evasion_report
 from ai_ids.models.detectors import (
     AugmentedHistGradientBoostingDetector,
     AugmentedRandomForestDetector,
@@ -69,7 +69,7 @@ def _git_commit() -> str | None:
 
 
 def _augmentation_params(config: TrainConfig) -> dict[str, Any]:
-    allowed = {"slowdowns", "paddings", "fraction"}
+    allowed = {"slowdowns", "paddings", "fraction", "mode", "padding_direction"}
     unknown = sorted(set(config.augmentation) - allowed)
     if unknown:
         raise ValueError(f"unknown augmentation keys: {unknown}")
@@ -255,7 +255,7 @@ def run_training(
         train_frame = split.train
         if detector.name.endswith(AUGMENTED_SUFFIX):
             if augmented_train is None:
-                augmented_train = augment_attack_flows(
+                augmented_train = augment_flows(
                     split.train, features, seed=config.seed, **_augmentation_params(config)
                 )
             train_frame = augmented_train

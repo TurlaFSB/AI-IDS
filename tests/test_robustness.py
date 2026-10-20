@@ -7,7 +7,7 @@ from ai_ids.data.split import chronological_split
 from ai_ids.evaluation.robustness import (
     TRAIN_PADDINGS,
     TRAIN_SLOWDOWNS,
-    augment_attack_flows,
+    augment_flows,
     default_perturbations,
     evasion_report,
     modified_columns,
@@ -174,35 +174,87 @@ def test_padding_keeps_related_features_consistent() -> None:
     assert out["avg_bwd_segment_size"].tolist() == [70.0, 0.0]
 
 
-def test_augmentation_adds_perturbed_attack_copies_only(cleaned: pd.DataFrame) -> None:
+def test_attack_only_mode_adds_perturbed_attack_copies_only(cleaned: pd.DataFrame) -> None:
     features = feature_columns(cleaned)
     train = cleaned.iloc[:4000].reset_index(drop=True)
     n_attacks = int(train[IS_ATTACK].sum())
-    out = augment_attack_flows(train, features, fraction=0.5, seed=3)
+    out = augment_flows(
+        train, features, fraction=0.5, mode="attack_only", padding_direction="both", seed=3
+    )
 
     added = out.iloc[len(train) :]
     assert len(added) == int(n_attacks * 0.5)
-    assert added[IS_ATTACK].all()  # benign flows are never duplicated or modified
+    assert added[IS_ATTACK].all()
     assert out.iloc[: len(train)].equals(train)
-    # the copies really are perturbed
     assert not np.allclose(
         added["flow_duration"].to_numpy(),
         train.loc[train[IS_ATTACK], "flow_duration"].iloc[: len(added)].to_numpy(),
     )
 
 
+def test_symmetric_mode_carries_no_label_information(cleaned: pd.DataFrame) -> None:
+    """The perturbed copies must contain both classes in the training data's own proportion."""
+    features = feature_columns(cleaned)
+    train = cleaned.reset_index(drop=True)
+    out = augment_flows(train, features, fraction=0.5, seed=4)
+    added = out.iloc[len(train) :]
+
+    assert len(added) == int(len(train) * 0.5)
+    assert added[IS_ATTACK].any()
+    assert (~added[IS_ATTACK]).any()  # benign flows are perturbed too
+    expected = float(train[IS_ATTACK].mean())
+    assert abs(float(added[IS_ATTACK].mean()) - expected) < 0.03
+    assert out.iloc[: len(train)].equals(train)
+
+
+def test_padding_direction_selects_the_transformation() -> None:
+    train = pd.DataFrame(
+        {
+            "row_id": np.arange(6),
+            "total_fwd_packets": [3.0] * 6,
+            "total_backward_packets": [2.0] * 6,
+            "fwd_packet_length_mean": [10.0, 20.0, 30.0, 40.0, 50.0, 60.0],
+            "bwd_packet_length_mean": [5.0, 6.0, 7.0, 8.0, 9.0, 10.0],
+            IS_ATTACK: [True, False, True, False, True, False],
+            CATEGORY: ["dos", "benign", "dos", "benign", "dos", "benign"],
+        }
+    )
+    features = [
+        "total_fwd_packets",
+        "total_backward_packets",
+        "fwd_packet_length_mean",
+        "bwd_packet_length_mean",
+    ]
+    common = {"slowdowns": (), "paddings": (100.0,), "fraction": 1.0, "seed": 1}
+
+    for direction, bwd_shift in (("forward", 0.0), ("both", 100.0)):
+        out = augment_flows(train, features, padding_direction=direction, **common)  # type: ignore[arg-type]
+        added = out.iloc[len(train) :].sort_values("row_id").reset_index(drop=True)
+        assert added["row_id"].tolist() == list(range(6))
+        assert (added["fwd_packet_length_mean"] - train["fwd_packet_length_mean"]).tolist() == [
+            100.0
+        ] * 6
+        assert (added["bwd_packet_length_mean"] - train["bwd_packet_length_mean"]).tolist() == [
+            bwd_shift
+        ] * 6
+
+
 def test_augmentation_is_deterministic_and_validated(cleaned: pd.DataFrame) -> None:
     features = feature_columns(cleaned)
     train = cleaned.iloc[:3000].reset_index(drop=True)
-    a = augment_attack_flows(train, features, seed=5)
-    b = augment_attack_flows(train, features, seed=5)
+    a = augment_flows(train, features, seed=5)
+    b = augment_flows(train, features, seed=5)
     assert a.equals(b)
     with pytest.raises(ValueError, match="fraction"):
-        augment_attack_flows(train, features, fraction=0.0)
+        augment_flows(train, features, fraction=0.0)
     with pytest.raises(ValueError, match="perturbation"):
-        augment_attack_flows(train, features, slowdowns=(), paddings=())
+        augment_flows(train, features, slowdowns=(), paddings=())
+    with pytest.raises(ValueError, match="mode"):
+        augment_flows(train, features, mode="bogus")
+    with pytest.raises(ValueError, match="padding_direction"):
+        augment_flows(train, features, padding_direction="sideways")
     benign_only = train[~train[IS_ATTACK]]
-    assert augment_attack_flows(benign_only, features) is benign_only
+    assert augment_flows(benign_only, features, mode="attack_only") is benign_only
 
 
 def test_training_and_evaluation_magnitudes_are_disjoint() -> None:
