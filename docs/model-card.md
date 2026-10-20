@@ -80,12 +80,27 @@ Random Forest, per capture day at the 1% operating point (test split):
 | Fri 7 July | 395,106 | 0.035 | 55,201 | 0.989 |
 
 All test-set benign flows come from Thursday and Friday (benign traffic is split chronologically
-across the week). Per-feature Population Stability Index between training and test benign
-traffic shows no significant drift (0 of 78 features above 0.25; 5 moderate, max 0.125, all on
-backward packet-length features). The concentration on Thursday therefore points to a specific
-traffic subset rather than broad covariate shift. **Hypothesis, unverified:** flows around the
-Thursday-afternoon infiltration session, where labels are known to be noisy. The hourly
-breakdown and false-positive profile in `report.json` exist to test this.
+across the week). By hour, the false-positive rate is 0.06% to 0.31% in every hour with at least 1,000 benign flows
+except two:
+**Thursday 15:00 (35.1%, 81,580 benign flows)** and **Friday 16:00 (17.0%, 65,462 benign flows)**;
+Friday 15:00 is 4.1%. Two source hosts produce 98.6% of all false positives (`192.168.10.8`: 67.3%
+of them, false-positive rate 43.9% among its benign test flows; `192.168.10.50`: 31.2%, rate 33.7%),
+and the false positives' destination ports with the highest rates are rare ports scattered across
+the range (five ports with 35-40 benign flows each have 80-89% of them flagged; port 1 has 71% of
+102), which looks like scan traffic. Per-feature
+Population Stability Index between training and test benign traffic shows no significant drift
+(0 of 78 features above 0.25; 5 moderate, maximum 0.125, all on backward packet-length features).
+
+**Interpretation (hypothesis, unverified):** the concentration points to attack-adjacent flows
+labelled benign (scanning from the compromised Thursday-afternoon infiltration victim, and the web
+server's side of the Friday DDoS and port-scan traffic) rather than genuine benign behaviour, in
+line with the labelling and flow-construction artefacts documented for CICIDS2017. The reported
+8.1% therefore mixes real false alarms with label noise. `ai-ids analyze` reports the time window,
+distinct ports and hosts of each top false-positive source, and the false-positive rate with the
+top hosts excluded (a sensitivity analysis, not a performance claim).
+
+Bot (490 test flows) is missed entirely at the 1% operating point; recall at the other operating
+points is reported per attack in `report.json`.
 
 Random Forest scores take only about 200 distinct values (share of trees voting "attack"), which
 makes low-FPR operating points degenerate (see ADR 0005).

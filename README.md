@@ -145,6 +145,7 @@ See [docs/data-governance.md](docs/data-governance.md) for provenance, privacy, 
 ```text
 ai-ids synth     write a synthetic CICIDS2017-style CSV
 ai-ids train     load, clean, split, train, calibrate, evaluate, and save detectors
+ai-ids analyze   re-run evaluation diagnostics on a saved model without retraining
 ai-ids holdout   leave-one-attack-family-out generalisation test (slow)
 ai-ids checksum  print SHA-256 digests of dataset files
 ```
@@ -196,16 +197,24 @@ of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,
 
 **What these numbers mean, honestly:**
 
-- **The false-positive rate did not hold, and the miss is concentrated.** Thresholds targeted 1%
-  on validation, but test FPR was 8.1% (Random Forest) and 3.4% (Isolation Forest). Per capture
-  day, Random Forest FPR was **22.2% on Thursday 6 July** (129,056 benign test flows) versus
-  **3.5% on Friday 7 July** (395,106 benign test flows); the overall 8.1% is that blend. Per-feature
-  drift (PSI) between training and test benign traffic is small: no feature is above the
-  "significant" threshold of 0.25 (maximum 0.12, on backward packet-length features), so this is
-  not broad distribution shift. A specific subset of Thursday traffic is the likely cause; one
-  hypothesis, **not yet verified**, is flows around the Thursday-afternoon infiltration session,
-  where the dataset's labels are known to be noisy. `report.json` now includes hourly rates and a
-  false-positive profile (which ports and hosts the false alarms cluster on) to test this.
+- **The false-positive rate did not hold, and the misses are concentrated.** Thresholds targeted
+  1% on validation, but test FPR was 8.1% (Random Forest) and 3.4% (Isolation Forest). By hour,
+  Random Forest FPR was **35.1% on Thursday 6 July 15:00-16:00** (81,580 benign flows) and
+  **17.0% during Friday's 16:00 hour** (65,462 benign flows), versus **0.06% to 0.31% in every
+  other hour with at least 1,000 benign flows**, well under the 1% target. Two source hosts account for **98.6% of all false
+  positives** (`192.168.10.8`: 67.3%, `192.168.10.50`: 31.2%), and the ports with the highest
+  false-positive rates are rare ones scattered across the port range, which looks like scan
+  traffic. Per-feature drift (PSI) is small (no feature above 0.25, maximum 0.12), so this is not
+  broad distribution shift.
+
+  **Hypothesis, not yet verified:** these are attack-adjacent flows that the dataset labels
+  benign, for example scanning from the compromised Thursday-afternoon infiltration victim and
+  the web server's side of Friday's DDoS and port-scan traffic, consistent with the labelling and
+  flow-construction artefacts documented for CICIDS2017. If true, the measured 8.1% mixes real
+  false alarms with label noise; it is still the number we report. `ai-ids analyze` adds the
+  evidence needed to test this (time windows and distinct ports and hosts per false-positive
+  source, and the false-positive rate with the top hosts excluded, as a sensitivity analysis
+  only).
 - **Headline recall is dominated by three attack types.** DDoS, DoS Hulk and PortScan are 92% of
   attack flows. Averaged evenly over attack types, Random Forest recall is 0.87. Bot is missed
   entirely (recall 0.00, 490 test flows).
@@ -221,8 +230,9 @@ of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,
   to mean anything.
 
 Reproduce with `ai-ids train`; the full per-attack table, results at other operating points,
-per-day and per-hour false-positive rates, false-positive profile, and feature-drift (PSI)
-summaries are in `report.json`.
+per-day and per-hour false-positive rates, false-positive profile, per-attack recall at every
+operating point, and feature-drift (PSI) summaries are in `report.json`. `ai-ids analyze` recomputes
+these from a saved model in minutes; it refuses to run if the data or split differ from training.
 
 ## Limitations
 

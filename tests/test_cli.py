@@ -45,6 +45,7 @@ def test_train_end_to_end(
     assert set(rf["by_day"]) == {"2017-07-03"}
     assert all(key.startswith("2017-07-03 ") for key in rf["by_hour"])
     assert rf["false_positive_profile"]["benign_flows"] > 0
+    assert "per_attack_recall" in rf["operating_points"]["fpr_0.05"]
     assert set(report["benign_drift"]) == {"train_vs_val", "train_vs_test"}
     assert "top" in report["benign_drift"]["train_vs_test"]
     assert "fpr_0.001" in rf["operating_points"]
@@ -103,3 +104,58 @@ def test_detector_selection(synthetic_csv: Path, tmp_path: Path) -> None:
     )
     report = json.loads((out / "report.json").read_text())
     assert set(report["models"]) == {"hist_gradient_boosting"}
+
+
+def _train_small(synthetic_csv: Path, out: Path, cfg: Path) -> None:
+    cfg.write_text(
+        "detectors: [random_forest]\nrandom_forest: {n_estimators: 10}\nevasion_analysis: false\n"
+    )
+    argv = ["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]
+    assert main(argv) == 0
+
+
+def test_analyze_reuses_saved_model_and_verifies_split(
+    synthetic_csv: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    out, cfg = tmp_path / "run", tmp_path / "cfg.yaml"
+    _train_small(synthetic_csv, out, cfg)
+    trained = json.loads((out / "report.json").read_text())["models"]["random_forest"]
+
+    analysis_path = tmp_path / "analysis.json"
+    argv = [
+        "analyze",
+        "--data",
+        str(synthetic_csv),
+        "--model-dir",
+        str(out / "random_forest"),
+        "--out",
+        str(analysis_path),
+        "--config",
+        str(cfg),
+    ]
+    assert main(argv) == 0
+    analysis = json.loads(analysis_path.read_text())
+    assert analysis["split_check"] == {"verified": True}
+    # Same model, same data, same threshold: identical test metrics, no retraining.
+    assert analysis["evaluation"]["test"] == trained["test"]
+    assert "split_verified=True" in capsys.readouterr().out
+
+
+def test_analyze_rejects_a_different_split(synthetic_csv: Path, tmp_path: Path) -> None:
+    out, cfg = tmp_path / "run", tmp_path / "cfg.yaml"
+    _train_small(synthetic_csv, out, cfg)
+    other = tmp_path / "other.yaml"
+    other.write_text("split_fractions: [0.5, 0.2, 0.3]\n")
+    argv = [
+        "analyze",
+        "--data",
+        str(synthetic_csv),
+        "--model-dir",
+        str(out / "random_forest"),
+        "--out",
+        str(tmp_path / "a.json"),
+        "--config",
+        str(other),
+    ]
+    with pytest.raises(ValueError, match="split_fractions"):
+        main(argv)

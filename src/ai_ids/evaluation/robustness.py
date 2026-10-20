@@ -46,22 +46,6 @@ _TIME_COLUMNS = (
 )
 _RATE_COLUMNS = ("flow_bytes_s", "flow_packets_s", "fwd_packets_s", "bwd_packets_s")
 
-# Padding adds a constant number of bytes to packet-size statistics.
-_SIZE_COLUMNS = (
-    "fwd_packet_length_mean",
-    "fwd_packet_length_max",
-    "fwd_packet_length_min",
-    "bwd_packet_length_mean",
-    "bwd_packet_length_max",
-    "bwd_packet_length_min",
-    "min_packet_length",
-    "max_packet_length",
-    "packet_length_mean",
-    "average_packet_size",
-    "avg_fwd_segment_size",
-    "avg_bwd_segment_size",
-)
-
 DEFAULT_SLOWDOWNS = (2.0, 5.0, 10.0)
 DEFAULT_PADDINGS = (64.0, 256.0, 1024.0)
 MIN_FAMILY_SUPPORT = 30
@@ -82,13 +66,45 @@ def slow_down(features: pd.DataFrame, factor: float) -> pd.DataFrame:
 
 
 def pad_packets(features: pd.DataFrame, extra_bytes: float) -> pd.DataFrame:
-    """Return a copy with `extra_bytes` added to packet-size statistics."""
+    """Return a copy in which every packet carries `extra_bytes` of additional payload.
+
+    The transformation keeps related features consistent: packet-length statistics shift by the
+    padding, totals grow by padding times packet count, and byte rates grow by padding times
+    packet rate. Spread statistics (standard deviation, variance) are unchanged because every
+    packet shifts equally, and statistics of a direction with no packets stay zero.
+    """
     if extra_bytes < 0:
         raise ValueError("extra_bytes must be non-negative")
     out = features.copy()
-    for column in _SIZE_COLUMNS:
+    directions = {"fwd": "total_fwd_packets", "bwd": "total_backward_packets"}
+    for direction, count_column in directions.items():
+        has_packets = out[count_column] > 0 if count_column in out else None
+        shift = extra_bytes if has_packets is None else extra_bytes * has_packets
+        for column in (
+            f"{direction}_packet_length_max",
+            f"{direction}_packet_length_min",
+            f"{direction}_packet_length_mean",
+            f"avg_{direction}_segment_size",
+        ):
+            if column in out:
+                out[column] = out[column] + shift
+        total_column = f"total_length_of_{direction}_packets"
+        if total_column in out and count_column in out:
+            out[total_column] = out[total_column] + extra_bytes * out[count_column]
+        subflow_bytes = f"subflow_{direction}_bytes"
+        subflow_packets = f"subflow_{direction}_packets"
+        if subflow_bytes in out and subflow_packets in out:
+            out[subflow_bytes] = out[subflow_bytes] + extra_bytes * out[subflow_packets]
+    for column in (
+        "min_packet_length",
+        "max_packet_length",
+        "packet_length_mean",
+        "average_packet_size",
+    ):
         if column in out:
             out[column] = out[column] + extra_bytes
+    if "flow_bytes_s" in out and "flow_packets_s" in out:
+        out["flow_bytes_s"] = out["flow_bytes_s"] + extra_bytes * out["flow_packets_s"]
     return out
 
 

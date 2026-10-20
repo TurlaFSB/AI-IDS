@@ -6,6 +6,7 @@ from ai_ids.evaluation.metrics import (
     binary_report,
     breakdown_by_group,
     false_positive_profile,
+    host_concentration,
     latency_profile,
     macro_recall,
     per_class_recall,
@@ -97,3 +98,35 @@ def test_false_positive_profile_without_false_positives() -> None:
         frame, np.array([False, True]), np.array([False, True]), ("destination_port",)
     )
     assert result == {"false_positives": 0, "benign_flows": 1}
+
+
+def test_host_concentration_reports_hosts_and_sensitivity() -> None:
+    frame = pd.DataFrame(
+        {
+            "source_ip": ["a", "a", "a", "b", "c", "c", "c", "c"],
+            "destination_port": [1.0, 2.0, 3.0, 80.0, 80.0, 80.0, 80.0, 80.0],
+            "destination_ip": ["x", "y", "z", "x", "x", "x", "x", "x"],
+            "timestamp": pd.to_datetime(["2017-07-06 15:00"] * 3 + ["2017-07-07 10:00"] * 5),
+        }
+    )
+    y_true = np.zeros(8, dtype=bool)
+    y_pred = np.array([True, True, True, True, False, False, False, False])
+    result = host_concentration(frame, y_true, y_pred, top_k=2)
+    top = result["top_hosts"]
+    assert isinstance(top, list)
+    assert top[0]["host"] == "a"
+    assert top[0]["share_of_false_positives"] == 0.75
+    assert top[0]["distinct_destination_ports"] == 3
+    assert top[0]["distinct_destination_hosts"] == 3
+    assert top[0]["first_false_positive"].startswith("2017-07-06 15:00")
+    excluding = result["fpr_excluding_top_hosts"]
+    assert isinstance(excluding, dict)
+    assert excluding["1"]["false_positive_rate"] == pytest.approx(1 / 5)
+    assert excluding["2"]["false_positive_rate"] == 0.0
+    assert "not a performance claim" in str(result["note"])
+
+
+def test_host_concentration_empty_cases() -> None:
+    frame = pd.DataFrame({"source_ip": ["a"]})
+    assert host_concentration(frame, np.array([False]), np.array([False])) == {}
+    assert host_concentration(pd.DataFrame({"x": [1]}), np.array([False]), np.array([True])) == {}

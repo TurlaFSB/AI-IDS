@@ -85,6 +85,14 @@ def save_detector(
     return manifest_path
 
 
+def read_manifest(directory: Path) -> dict[str, Any]:
+    """Read an artifact manifest (does not verify it; `load_detector` does)."""
+    manifest = json.loads((directory / MANIFEST_FILE).read_text())
+    if not isinstance(manifest, dict):
+        raise IntegrityError("manifest is not a JSON object")
+    return manifest
+
+
 def load_detector(directory: Path, *, hmac_key: bytes | None = None) -> BaseDetector:
     manifest = json.loads((directory / MANIFEST_FILE).read_text())
     signature = manifest.get("signature")

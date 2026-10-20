@@ -123,3 +123,38 @@ def test_evasion_flag_in_pipeline(synthetic_csv, tmp_path) -> None:  # type: ign
     )
     without = json.loads((out2 / "report.json").read_text())["models"]["random_forest"]
     assert "evasion" not in without
+
+
+def test_padding_keeps_related_features_consistent() -> None:
+    frame = pd.DataFrame(
+        {
+            "total_fwd_packets": [4.0, 3.0],
+            "total_backward_packets": [2.0, 0.0],
+            "fwd_packet_length_min": [10.0, 5.0],
+            "fwd_packet_length_max": [100.0, 50.0],
+            "fwd_packet_length_mean": [40.0, 20.0],
+            "bwd_packet_length_max": [80.0, 0.0],
+            "bwd_packet_length_mean": [60.0, 0.0],
+            "avg_fwd_segment_size": [40.0, 20.0],
+            "avg_bwd_segment_size": [60.0, 0.0],
+            "total_length_of_fwd_packets": [160.0, 60.0],
+            "total_length_of_bwd_packets": [120.0, 0.0],
+            "subflow_fwd_packets": [4.0, 3.0],
+            "subflow_fwd_bytes": [160.0, 60.0],
+            "min_packet_length": [10.0, 5.0],
+            "packet_length_mean": [47.0, 20.0],
+            "packet_length_std": [30.0, 10.0],
+            "flow_packets_s": [100.0, 50.0],
+            "flow_bytes_s": [4700.0, 1000.0],
+        }
+    )
+    out = pad_packets(frame, 10.0)
+    assert out["fwd_packet_length_mean"].tolist() == [50.0, 30.0]
+    assert out["total_length_of_fwd_packets"].tolist() == [200.0, 90.0]  # + 10 * packets
+    assert out["total_length_of_bwd_packets"].tolist() == [140.0, 0.0]
+    assert out["subflow_fwd_bytes"].tolist() == [200.0, 90.0]
+    assert out["flow_bytes_s"].tolist() == [5700.0, 1500.0]  # + 10 * packets/s
+    assert out["packet_length_std"].tolist() == [30.0, 10.0]  # spread is unchanged
+    # a direction with no packets stays at zero
+    assert out["bwd_packet_length_max"].tolist() == [90.0, 0.0]
+    assert out["avg_bwd_segment_size"].tolist() == [70.0, 0.0]

@@ -6,12 +6,22 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- Packet-size padding in the evasion analysis is now self-consistent (totals, byte rates and
+  averages move with the per-packet lengths); earlier numbers used a partial transformation and
+  are superseded.
+
 ### Fixed
 - Dates in CICIDS2017 files are day-first; they were parsed month-first, which mislabelled capture
   days in reports (chronological order was unaffected). Parsing is now day-first by default
   (`timestamp_dayfirst`).
 
 ### Added
+- `ai-ids analyze`: recompute all evaluation diagnostics from a saved model without retraining;
+  refuses to run if the dataset or split differs from training.
+- Host-concentration diagnostics for false positives (time window, distinct ports and hosts, and a
+  clearly labelled exclude-top-hosts sensitivity figure) and per-attack recall at every operating
+  point.
 - Hourly false-positive and recall breakdown, and a false-positive profile (which ports and hosts
   false alarms concentrate on) in every report.
 - Supply-chain hardening (ADR 0006): hash-locked dependencies with a lock-freshness CI check,

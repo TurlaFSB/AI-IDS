@@ -15,7 +15,7 @@ from ai_ids.data.integrity import dataset_checksums
 from ai_ids.data.synthetic import generate_flows
 from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.logging_config import configure_logging
-from ai_ids.pipeline import prepare_data, run_training
+from ai_ids.pipeline import prepare_data, run_analysis, run_training
 
 HMAC_KEY_ENV = "AI_IDS_MODEL_HMAC_KEY"
 
@@ -42,6 +42,14 @@ def _build_parser() -> argparse.ArgumentParser:
     holdout.add_argument("--data", type=Path, required=True, help="CSV file or directory")
     holdout.add_argument("--out", type=Path, required=True, help="output JSON file")
     holdout.add_argument("--config", type=Path, help="YAML experiment config")
+
+    analyze = sub.add_parser(
+        "analyze", help="re-run evaluation diagnostics on a saved model without retraining"
+    )
+    analyze.add_argument("--data", type=Path, required=True, help="CSV file or directory")
+    analyze.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
+    analyze.add_argument("--out", type=Path, required=True, help="output JSON file")
+    analyze.add_argument("--config", type=Path, help="YAML experiment config used for training")
 
     checksum = sub.add_parser("checksum", help="print SHA-256 digests of dataset files")
     checksum.add_argument("path", type=Path)
@@ -82,6 +90,22 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{family}: recall_unseen={result['recall_unseen']:.4f} "
                 f"fpr={result['false_positive_rate']:.4f} support={result['test_support']}"
             )
+        return 0
+
+    if args.command == "analyze":
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        key = os.environ.get(HMAC_KEY_ENV)
+        analysis = run_analysis(
+            args.data, args.model_dir, config, hmac_key=key.encode() if key else None
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(analysis, indent=2, default=str) + "\n")
+        test = analysis["evaluation"]["test"]
+        print(
+            f"{analysis['detector']}: recall={test['recall']:.4f} "
+            f"fpr={test['false_positive_rate']:.4f} split_verified="
+            f"{analysis['split_check']['verified']}"
+        )
         return 0
 
     if args.command == "checksum":

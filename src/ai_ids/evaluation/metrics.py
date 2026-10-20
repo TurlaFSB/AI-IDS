@@ -139,6 +139,72 @@ def false_positive_profile(
     return result
 
 
+def host_concentration(
+    frame: pd.DataFrame,
+    y_true: BoolArray,
+    y_pred: BoolArray,
+    *,
+    host_column: str = "source_ip",
+    top_k: int = 3,
+    port_column: str = "destination_port",
+    peer_column: str = "destination_ip",
+    time_column: str = "timestamp",
+) -> dict[str, object]:
+    """How concentrated false positives are on a few hosts, and when they occurred.
+
+    Also reports the false-positive rate with the top hosts excluded. That figure is a
+    sensitivity analysis only: excluding hosts after seeing where errors fall is not a
+    performance claim.
+    """
+    if host_column not in frame.columns:
+        return {}
+    false_positives = frame[~y_true & y_pred]
+    total = len(false_positives)
+    if total == 0:
+        return {}
+    benign = frame[~y_true]
+    benign_counts = benign[host_column].value_counts().to_dict()
+    hosts = false_positives[host_column].value_counts().head(top_k)
+
+    top_hosts = []
+    for host, count in hosts.items():
+        rows = false_positives[false_positives[host_column] == host]
+        entry: dict[str, object] = {
+            "host": str(host),
+            "false_positives": int(count),
+            "share_of_false_positives": float(count / total),
+            "benign_flows": int(benign_counts[host]),
+            "false_positive_rate": float(count / benign_counts[host]),
+        }
+        if port_column in rows.columns:
+            entry["distinct_destination_ports"] = int(rows[port_column].nunique())
+        if peer_column in rows.columns:
+            entry["distinct_destination_hosts"] = int(rows[peer_column].nunique())
+        if time_column in rows.columns and rows[time_column].notna().any():
+            entry["first_false_positive"] = str(rows[time_column].min())
+            entry["last_false_positive"] = str(rows[time_column].max())
+        top_hosts.append(entry)
+
+    excluding: dict[str, dict[str, object]] = {}
+    for k in range(1, len(hosts) + 1):
+        excluded = list(hosts.index[:k])
+        benign_left = int((~benign[host_column].isin(excluded)).sum())
+        false_left = int((~false_positives[host_column].isin(excluded)).sum())
+        excluding[str(k)] = {
+            "excluded_hosts": [str(h) for h in excluded],
+            "benign_flows_remaining": benign_left,
+            "false_positive_rate": float(false_left / benign_left) if benign_left else None,
+        }
+    return {
+        "top_hosts": top_hosts,
+        "fpr_excluding_top_hosts": excluding,
+        "note": (
+            "Sensitivity analysis only: excluding hosts after seeing where errors fall is not "
+            "a performance claim."
+        ),
+    }
+
+
 def latency_profile(
     score_fn: Callable[[pd.DataFrame], FloatArray],
     X: pd.DataFrame,
