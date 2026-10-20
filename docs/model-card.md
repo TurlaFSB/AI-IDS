@@ -9,6 +9,7 @@ Status: **v0.1 baseline.** First real-data results below (default config, seed 4
 |---|---|---|---|
 | Random Forest (`random_forest`) | Supervised multi-class classifier (scikit-learn), class-balanced | Train split, all categories | 1 − P(benign) |
 | Isolation Forest (`isolation_forest`) | Unsupervised novelty detector (scikit-learn), rank-transformed features | Train split, benign flows only | Negated isolation score |
+| Autoencoder (`autoencoder`) | Unsupervised reconstruction-error detector (scikit-learn MLP, 64-16-64 bottleneck, CPU; ADR 0007) | Train split, benign flows only (up to 300,000 sampled) | Mean squared reconstruction error |
 | Gradient boosting (`hist_gradient_boosting`) | Supervised attack-vs-benign classifier (scikit-learn), balanced class weights, continuous scores (ADR 0005) | Train split, all categories | P(attack) |
 
 ## Intended use
@@ -33,8 +34,8 @@ medians, identifiers excluded from features.
 
 ## Results
 
-Results below are for the Random Forest and Isolation Forest. The gradient-boosting detector was
-added afterwards and has not yet been evaluated on real data.
+Results below are for the Random Forest and Isolation Forest. The gradient-boosting detector and
+the autoencoder were added afterwards and have not yet been evaluated on real data.
 
 Test set: 630,647 flows (106,485 attacks, 16.9%), after cleaning 3,119,345 rows to 2,522,525.
 Thresholds calibrated for a 1% false-positive rate on benign validation flows.
@@ -104,6 +105,29 @@ points is reported per attack in `report.json`.
 
 Random Forest scores take only about 200 distinct values (share of trees voting "attack"), which
 makes low-FPR operating points degenerate (see ADR 0005).
+
+### Generalisation to unseen attack families
+
+Leave-one-attack-family-out (`ai-ids holdout`): a Random Forest (50 trees, light config) is
+trained with one attack family removed, the threshold is set for 1% FPR on benign validation
+flows, and recall is measured on the removed family. The Isolation Forest never sees attacks, so
+its normal per-category recall is the comparable figure.
+
+| Family (test flows) | Random Forest, family unseen | Isolation Forest |
+|---|---|---|
+| Web attacks (538) | 0.874 | 0.000 |
+| DDoS (32,005) | 0.584 | 0.071 |
+| Brute force, FTP/SSH-Patator (2,291) | 0.256 | 0.000 |
+| DoS (48,441) | 0.150 | 0.040 |
+| Port scan (22,706) | 0.055 | 0.001 |
+| Botnet (490) | 0.000 | 0.000 |
+| Unweighted mean | 0.320 | 0.019 |
+| Pooled over flows | 0.266 | 0.040 |
+
+For comparison, the same family-level model recognises known attacks at 0.99 recall. The
+false-positive rate in these holdout runs was 5.4% to 8.3% on test (the label-noise-affected
+figure discussed above). Caveats: 50 trees rather than 200, a single seed, and attack families
+grouped at category level, so related families (for example DoS and DDoS) can help each other.
 
 ## Robustness to evasion (method)
 

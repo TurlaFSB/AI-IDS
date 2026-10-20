@@ -9,6 +9,7 @@ from ai_ids.data.integrity import dataset_checksums
 from ai_ids.registry import load_detector
 
 
+@pytest.mark.filterwarnings("ignore::sklearn.exceptions.ConvergenceWarning")  # tiny epoch budget
 def test_train_end_to_end(
     synthetic_csv: Path,
     tmp_path: Path,
@@ -22,6 +23,7 @@ def test_train_end_to_end(
         "random_forest: {n_estimators: 20}\n"
         "isolation_forest: {n_estimators: 20}\n"
         "hist_gradient_boosting: {max_iter: 20}\n"
+        "autoencoder: {max_iter: 5, max_train_rows: 3000}\n"
     )
     assert (
         main(["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]) == 0
@@ -32,11 +34,14 @@ def test_train_end_to_end(
         "random_forest",
         "isolation_forest",
         "hist_gradient_boosting",
+        "autoencoder",
     }
     rf = report["models"]["random_forest"]
     assert 0.0 <= rf["test"]["false_positive_rate"] <= 0.05
     assert "batch_1" in rf["latency_single_thread"]
+    assert report["models"]["autoencoder"]["training_info"]["epochs"] >= 1
     assert rf["macro_recall"] is not None
+    assert set(rf["per_category_recall"]) >= {"dos", "portscan"}
     assert (
         report["dataset"]["files_sha256"]["flows.csv"]
         == dataset_checksums(synthetic_csv)["flows.csv"]

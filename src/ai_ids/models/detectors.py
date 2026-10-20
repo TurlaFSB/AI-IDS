@@ -14,6 +14,7 @@ from sklearn.ensemble import (
     RandomForestClassifier,
 )
 from sklearn.impute import SimpleImputer
+from sklearn.neural_network import MLPRegressor
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import QuantileTransformer
 from threadpoolctl import threadpool_limits
@@ -217,6 +218,92 @@ class HistGradientBoostingDetector(BaseDetector):
         with threadpool_limits(limits=self._threads):
             proba = self._fitted().predict_proba(self._align(X))
         return np.asarray(proba[:, 1], dtype=np.float64)
+
+    def set_inference_threads(self, n_jobs: int) -> None:
+        self._threads = n_jobs
+
+
+class AutoencoderDetector(BaseDetector):
+    """Reconstruction-error anomaly detector trained on benign traffic only.
+
+    A small multilayer perceptron learns to reproduce rank-normalised benign flow features
+    through a narrow bottleneck; flows it reconstructs poorly are scored as suspicious. It never
+    sees attack labels, so its recall on any attack family is a measure of novelty detection.
+    Implemented with scikit-learn (CPU) to keep the dependency set small and reproducible.
+    """
+
+    name = "autoencoder"
+
+    def __init__(
+        self,
+        hidden_layer_sizes: tuple[int, ...] = (64, 16, 64),
+        max_iter: int = 40,
+        learning_rate_init: float = 1e-3,
+        max_train_rows: int = 300_000,
+        seed: int = 42,
+        n_jobs: int | None = None,
+    ) -> None:
+        super().__init__()
+        self._seed = seed
+        self._threads = n_jobs
+        self._max_train_rows = max_train_rows
+        self._net: MLPRegressor | None = None
+        self.training_info_: dict[str, Any] = {}
+        self._params: dict[str, Any] = {
+            "hidden_layer_sizes": tuple(hidden_layer_sizes),
+            "activation": "relu",
+            "solver": "adam",
+            "learning_rate_init": learning_rate_init,
+            "max_iter": max_iter,
+            "early_stopping": True,
+            "validation_fraction": 0.1,
+            "n_iter_no_change": 5,
+            "random_state": seed,
+        }
+
+    def fit(self, X: pd.DataFrame, categories: pd.Series) -> Self:
+        benign = X[(categories == BENIGN).to_numpy()]
+        if benign.empty:
+            raise ValueError("training data contains no benign flows")
+        if len(benign) > self._max_train_rows:
+            benign = benign.sample(n=self._max_train_rows, random_state=self._seed)
+        self.feature_names_ = list(X.columns)
+        prep = Pipeline(
+            [
+                ("impute", SimpleImputer(strategy="median", keep_empty_features=True)),
+                (
+                    "rank",
+                    QuantileTransformer(
+                        n_quantiles=min(1000, len(benign)),
+                        output_distribution="normal",
+                        subsample=200_000,
+                        random_state=self._seed,
+                    ),
+                ),
+            ]
+        )
+        with threadpool_limits(limits=self._threads):
+            features = prep.fit_transform(benign)
+            net = MLPRegressor(**self._params)
+            net.fit(features, features)
+        self._pipeline = prep
+        self._net = net
+        self.training_info_ = {
+            "epochs": int(net.n_iter_),
+            "max_epochs": int(self._params["max_iter"]),
+            "reached_max_epochs": bool(net.n_iter_ >= self._params["max_iter"]),
+            "training_rows": len(benign),
+            "best_validation_loss": float(net.best_loss_) if net.best_loss_ is not None else None,
+        }
+        return self
+
+    def score(self, X: pd.DataFrame) -> FloatArray:
+        if self._net is None:
+            raise RuntimeError(f"{self.name} detector is not fitted")
+        with threadpool_limits(limits=self._threads):
+            features = self._fitted().transform(self._align(X))
+            reconstruction = self._net.predict(features)
+        return np.asarray(((features - reconstruction) ** 2).mean(axis=1), dtype=np.float64)
 
     def set_inference_threads(self, n_jobs: int) -> None:
         self._threads = n_jobs

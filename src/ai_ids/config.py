@@ -8,7 +8,12 @@ from typing import Any
 
 import yaml
 
-DEFAULT_DETECTORS = ("random_forest", "isolation_forest", "hist_gradient_boosting")
+DEFAULT_DETECTORS = (
+    "random_forest",
+    "isolation_forest",
+    "hist_gradient_boosting",
+    "autoencoder",
+)
 
 
 @dataclass(frozen=True)
@@ -23,6 +28,7 @@ class TrainConfig:
     random_forest: dict[str, Any] = field(default_factory=dict)
     isolation_forest: dict[str, Any] = field(default_factory=dict)
     hist_gradient_boosting: dict[str, Any] = field(default_factory=dict)
+    autoencoder: dict[str, Any] = field(default_factory=dict)
     detectors: tuple[str, ...] = DEFAULT_DETECTORS
     evasion_analysis: bool = True
     holdout: dict[str, Any] = field(default_factory=dict)

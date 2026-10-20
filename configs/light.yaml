@@ -17,3 +17,8 @@ isolation_forest:
 hist_gradient_boosting:
   max_iter: 100
   n_jobs: 4
+autoencoder:
+  hidden_layer_sizes: [64, 16, 64]
+  max_iter: 25
+  max_train_rows: 150000
+  n_jobs: 4

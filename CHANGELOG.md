@@ -17,6 +17,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   (`timestamp_dayfirst`).
 
 ### Added
+- Autoencoder detector (scikit-learn MLP, CPU; ADR 0007) with training diagnostics in the report,
+  and per-category recall in every report for like-for-like comparison of detectors.
+- Leave-one-attack-family-out results from the first real run in the README and model card.
 - `ai-ids analyze`: recompute all evaluation diagnostics from a saved model without retraining;
   refuses to run if the dataset or split differs from training.
 - Host-concentration diagnostics for false positives (time window, distinct ports and hosts, and a

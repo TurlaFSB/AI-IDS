@@ -39,6 +39,7 @@ from ai_ids.evaluation.metrics import (
 )
 from ai_ids.evaluation.robustness import evasion_report
 from ai_ids.models.detectors import (
+    AutoencoderDetector,
     BaseDetector,
     HistGradientBoostingDetector,
     IsolationForestDetector,
@@ -73,6 +74,7 @@ def build_detectors(config: TrainConfig) -> list[BaseDetector]:
         "hist_gradient_boosting": lambda: HistGradientBoostingDetector(
             seed=config.seed, **config.hist_gradient_boosting
         ),
+        "autoencoder": lambda: AutoencoderDetector(seed=config.seed, **config.autoencoder),
     }
     return [factories[name]() for name in config.detectors]
 
@@ -137,6 +139,7 @@ def evaluate_detector(
         "test": binary_report(y_true, test_scores, threshold),
         "operating_points": operating_points,
         "per_attack_recall": per_attack,
+        "per_category_recall": per_class_recall(split.test[CATEGORY], y_pred, y_true),
         "macro_recall": macro_recall(per_attack),
         "macro_recall_min_support_30": macro_recall(per_attack, min_support=30),
         "latency_single_thread": latency_profile(detector.score, split.test[features]),
@@ -224,6 +227,9 @@ def run_training(
         logger.info("training", extra={"fields": {"detector": detector.name}})
         detector.fit(split.train[features], split.train[CATEGORY])
         result = evaluate_detector(detector, split, features, config)
+        training_info = getattr(detector, "training_info_", None)
+        if training_info:
+            result["training_info"] = training_info
         report["models"][detector.name] = result
         save_detector(
             detector,

@@ -5,6 +5,7 @@ import pytest
 from ai_ids.data.loader import CATEGORY, IS_ATTACK, feature_columns
 from ai_ids.data.split import chronological_split
 from ai_ids.models.detectors import (
+    AutoencoderDetector,
     HistGradientBoostingDetector,
     IsolationForestDetector,
     RandomForestDetector,
@@ -102,3 +103,30 @@ def test_gradient_boosting_requires_both_classes(split, features) -> None:  # ty
         HistGradientBoostingDetector().fit(benign[features], benign[CATEGORY])
     with pytest.raises(ValueError, match="both"):
         HistGradientBoostingDetector().fit(attacks[features], attacks[CATEGORY])
+
+
+@pytest.mark.filterwarnings("ignore::sklearn.exceptions.ConvergenceWarning")  # tiny epoch budget
+def test_autoencoder_scores_attacks_higher_without_seeing_them(split, features) -> None:  # type: ignore[no-untyped-def]
+    det = AutoencoderDetector(
+        hidden_layer_sizes=(16, 4, 16), max_iter=15, max_train_rows=4000, seed=1, n_jobs=2
+    ).fit(split.train[features], split.train[CATEGORY])
+    scores = det.score(split.test[features])
+    y = split.test[IS_ATTACK].to_numpy()
+    assert scores.shape == (len(split.test),)
+    assert np.all(scores >= 0.0)
+    assert scores[y].mean() > scores[~y].mean()
+    det.set_inference_threads(1)
+    assert det.score(split.test[features].head(3)).shape == (3,)
+    info = det.training_info_
+    assert info["epochs"] >= 1
+    assert info["reached_max_epochs"] == (info["epochs"] >= info["max_epochs"])
+    benign_available = int((~split.train[IS_ATTACK]).sum())
+    assert info["training_rows"] == min(4000, benign_available)
+
+
+def test_autoencoder_requires_benign_and_fit(split, features) -> None:  # type: ignore[no-untyped-def]
+    attacks = split.train[split.train[IS_ATTACK]]
+    with pytest.raises(ValueError, match="benign"):
+        AutoencoderDetector().fit(attacks[features], attacks[CATEGORY])
+    with pytest.raises(RuntimeError, match="not fitted"):
+        AutoencoderDetector().score(split.test[features])

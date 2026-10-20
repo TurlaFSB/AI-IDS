@@ -48,7 +48,7 @@ model artifacts.
 |---|---|
 | Data | CICIDS2017 loader: label normalisation, duplicate and non-finite value handling, timestamp repair |
 | Splitting | Per-class chronological train / validation / test split (no random splits) |
-| Detectors | Random Forest (supervised, multi-class), Isolation Forest (unsupervised, benign-only training), and gradient boosting (supervised, continuous scores) behind one scoring contract |
+| Detectors | Random Forest (supervised, multi-class), gradient boosting (supervised, continuous scores), Isolation Forest and an autoencoder (both unsupervised, benign-only training) behind one scoring contract |
 | Operating point | Alert threshold calibrated on held-out benign traffic to a target false-positive rate |
 | Metrics | Recall, precision, F1, FPR, MCC, ROC-AUC, PR-AUC, per-attack recall with support, scoring latency (p50/p95/p99) |
 | Model registry | SHA-256 manifest per artifact, optional HMAC-SHA256 signature, recorded environment versions |
@@ -65,16 +65,19 @@ flowchart LR
     B --> C[Per-class chronological split]
     C -->|train| D[Random Forest]
     C -->|benign train| E[Isolation Forest]
+    C -->|benign train| K[Autoencoder]
     C -->|train| J[Gradient boosting]
     C -->|benign validation| F[FPR threshold calibration]
     D --> F
     E --> F
     J --> F
+    K --> F
     C -->|test| G[Evaluation]
     F --> G
     D --> H[Model registry]
     E --> H
     J --> H
+    K --> H
     G --> I[report.json]
 ```
 
@@ -221,6 +224,13 @@ of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,
 - **In-distribution recall is optimistic.** Attack runs are bursts of near-identical flows, so
   part of each run is in both train and test. Use `ai-ids holdout` (leave-one-family-out) to
   measure detection of attack families absent from training.
+- **Detection of unseen attack families is weak.** In the leave-one-family-out test (Random
+  Forest, 50 trees, the family removed from training, threshold set for 1% FPR on validation),
+  recall on the unseen family was: web attacks 0.87, DDoS 0.58, brute force (FTP/SSH-Patator) 0.26,
+  DoS 0.15, port scan 0.06, botnet 0.00. That is 0.32 averaged over the six families and 0.27
+  pooled over flows, versus 0.99 on attacks the model was trained on. The Isolation Forest, which
+  never sees attacks, does worse on every family (DDoS 0.07, DoS 0.04, port scan 0.001, the
+  others 0.00). In-distribution recall mostly measures recognition of known attack tools.
 - **Random Forest scores are coarse.** The score is the share of trees voting "attack", so very
   low FPR targets collapse (at a 0.1% target the threshold saturates and nothing is flagged).
   A finer or calibrated score is needed for low-FPR operation.
@@ -240,7 +250,8 @@ these from a saved model in minutes; it refuses to run if the data or split diff
   (see Engelen, Rimmer and Joosen, "Troubleshooting an Intrusion Detection Dataset: the CICIDS2017
   Case Study", IEEE Security and Privacy Workshops, 2021). Corrected-label support is planned;
   treat early numbers as provisional.
-- Attacks in the dataset come from a small set of tools, so models may learn tool signatures.
+- Attacks in the dataset come from a small set of tools, so models learn tool signatures; the
+  leave-one-family-out test above quantifies how little carries over to unseen families.
 - Very small classes (Heartbleed, Infiltration) have tiny test sets and unreliable recall.
 - The evasion analysis is feature-space only (not packet-level); performance on other networks is
   unknown.
@@ -286,9 +297,9 @@ tests/             unit and end-to-end tests
 
 ## Roadmap
 
-1. **Milestone 2:** error analysis of the Bot miss and of false positives by day; finer or
-   calibrated scores for low-FPR operation; PyTorch autoencoder (GPU) as a third detector;
-   corrected-label support.
+1. **Milestone 2:** evaluate the autoencoder and gradient-boosting detectors on real data against
+   the unseen-family benchmark; error analysis of the Bot miss; corrected-label support; a
+   PyTorch/GPU autoencoder only if the CPU baseline proves insufficient (ADR 0007).
 2. **Milestone 3:** Live flow capture and real-time scoring service with Prometheus metrics.
 3. **Milestone 4:** Threat-intelligence enrichment (AbuseIPDB, AlienVault OTX) with caching and a
    local blocklist fallback; ATT&CK-tagged alerts.

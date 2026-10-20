@@ -12,3 +12,4 @@ Superseded records are kept and marked, never deleted.
 | [0004](0004-fpr-calibrated-threshold.md) | Alert threshold calibrated to a target false-positive rate | Accepted |
 | [0005](0005-gradient-boosting-for-continuous-scores.md) | Add gradient boosting for continuous scores | Accepted |
 | [0006](0006-supply-chain-integrity.md) | Supply-chain integrity controls | Accepted |
+| [0007](0007-cpu-autoencoder-first.md) | Autoencoder with scikit-learn on CPU first | Accepted |
