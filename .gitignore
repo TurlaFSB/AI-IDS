@@ -15,8 +15,8 @@ dist/
 # Data and model artifacts (never commit captures, datasets, or trained models)
 data/*
 !data/README.md
-models/
-reports/
+/models/
+/reports/
 *.pcap
 *.pcapng
 *.joblib
