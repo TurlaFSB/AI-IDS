@@ -1,4 +1,5 @@
-# Lower-memory settings for laptops: fewer, shallower trees and a smaller saved model.
+# Lower-resource settings for laptops: fewer, shallower trees, a smaller saved model,
+# and a cap of 4 worker threads (slower, but lighter on CPU, heat and power).
 seed: 42
 target_fpr: 0.01
 operating_fprs: [0.001, 0.01, 0.05]
@@ -8,6 +9,8 @@ random_forest:
   n_estimators: 100
   max_depth: 30
   min_samples_leaf: 2
+  n_jobs: 4
 isolation_forest:
   n_estimators: 100
   max_samples: 256
+  n_jobs: 4
