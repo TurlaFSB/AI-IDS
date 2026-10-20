@@ -15,6 +15,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   report, `ai-ids seeds` for multi-seed spread, and `fusion_mean` / `fusion_max` score-fusion
   detectors (ADR 0009).
 
+### Results
+- First full-data run of bootstrap intervals, three-seed spread and score fusion recorded; fusion
+  showed no clear gain over the augmented Random Forest (ADR 0009).
+
 ### Changed
 - Evasion-aware training is now symmetric (perturbed copies drawn from benign and attack flows alike)
   and trains on forward-only padding by default; the first attack-only design is documented as having

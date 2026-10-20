@@ -1,6 +1,6 @@
 # 0009. Block-bootstrap uncertainty, multi-seed studies and score fusion
 
-Status: Accepted (2026-10-20); results pending
+Status: Accepted (2026-10-20); first results recorded
 
 ## Context
 Every number reported so far comes from one seed and one fixed chronological split, with no
@@ -37,3 +37,10 @@ attack-adjacent traffic, so combining them is a natural candidate.
 - Fusion adds model size (components are stored with the fused artifact) and needs validation
   data; whether it helps is empirical and reported either way.
 - Seed studies are expensive (one full training per seed per detector).
+
+## Outcome (first full run)
+Fusion did not beat its best component: intervals overlap, mean fusion lowered PR-AUC, and max
+fusion raised macro recall only marginally (0.897 against 0.884, single run). The bootstrap
+intervals were wide (Random Forest false-positive rate roughly 4% to 12%), and three-seed spread
+was small for the Random Forest and larger for gradient boosting. The decision to keep fusion
+available stands, but it is not recommended as a default. Numbers are in the README.

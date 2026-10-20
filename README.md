@@ -10,8 +10,9 @@ Machine-learning network intrusion detection for enterprise traffic, built aroun
 evaluation, calibrated false-positive rates, and integrity-checked models.
 
 > **Status: v0.1, foundation.** Offline training and evaluation are implemented and tested.
-> Real-data results are pending; live capture, threat-intelligence enrichment, drift-triggered
-> retraining, an autoencoder, and a dashboard are on the [roadmap](#roadmap). Nothing here is
+> Real-data results are reported below. Offline detectors, a scoring service and a dashboard exist;
+> live capture, threat-intelligence enrichment and drift-triggered retraining are on the
+> [roadmap](#roadmap). Nothing here is
 > validated for production use yet.
 
 ## Contents
@@ -338,6 +339,53 @@ Reproduce with `ai-ids train`; the full per-attack table, results at other opera
 per-day and per-hour false-positive rates, false-positive profile, per-attack recall at every
 operating point, and feature-drift (PSI) summaries are in `report.json`. `ai-ids analyze` recomputes
 these from a saved model in minutes; it refuses to run if the data or split differ from training.
+
+### Uncertainty, seed spread and score fusion
+
+Run: `ai-ids train --config configs/robustness.yaml` and `ai-ids seeds --seeds 42 43 44` on the full
+CICIDS2017 data (same split and 1% validation FPR target as above). Intervals are 95% time-block
+bootstrap intervals (5-minute blocks, 2,000 resamples). The seed study uses the sample standard
+deviation of three seeds; it measures model randomness only, because the split is fixed.
+
+| Detector | Recall [95% CI] | False-positive rate [95% CI] | Precision | PR-AUC | Macro recall |
+|---|---|---|---|---|---|
+| Random Forest | 0.990 [0.968, 0.995] | 0.081 [0.040, 0.121] | 0.713 | 0.993 | 0.870 |
+| Random Forest, augmented | 0.990 [0.970, 0.995] | 0.080 [0.040, 0.119] | 0.716 | 0.993 | 0.884 |
+| Gradient boosting | 0.868 [0.657, 0.967] | 0.0026 [0.0007, 0.0052] | 0.985 | 0.988 | 0.578 |
+| Gradient boosting, augmented | 0.988 [0.967, 0.993] | 0.070 [0.032, 0.109] | 0.742 | 0.976 | 0.806 |
+| Fusion (mean) | 0.991 [0.972, 0.995] | 0.074 [0.035, 0.114] | 0.730 | 0.986 | 0.823 |
+| Fusion (max) | 0.991 [0.972, 0.995] | 0.080 [0.040, 0.120] | 0.715 | 0.993 | 0.897 |
+
+Across seeds 42, 43 and 44 (mean ± standard deviation):
+
+| Detector | Recall | False-positive rate | Precision |
+|---|---|---|---|
+| Random Forest | 0.9900 ± 0.0003 | 0.076 ± 0.007 | 0.726 ± 0.019 |
+| Random Forest, augmented | 0.9901 ± 0.0006 | 0.077 ± 0.005 | 0.723 ± 0.014 |
+| Gradient boosting | 0.878 ± 0.013 | 0.0026 ± 0.0001 | 0.986 ± 0.001 |
+| Gradient boosting, augmented | 0.976 ± 0.015 | 0.059 ± 0.009 | 0.770 ± 0.024 |
+
+What this does and does not show:
+- **Fusion did not help.** Neither rule separates from its best component: every recall and
+  false-positive interval overlaps the Random Forest's. Mean fusion lowers PR-AUC (0.986 against
+  0.993); max fusion has the highest macro recall (0.897) but the difference from the augmented
+  Random Forest (0.884) is small and was measured once. Fusion adds model size and inference cost,
+  so the single augmented Random Forest remains the simpler choice on this evidence.
+- **The intervals are wide where it matters.** The Random Forest false-positive rate spans roughly
+  4% to 12%, because false alarms cluster in a few time blocks; a single point estimate
+  says little about the false-alarm rate a deployment would see. Gradient boosting's recall interval (0.66 to 0.97) is
+  wider still because its misses sit in few attack runs.
+- **No detector except plain gradient boosting meets the 1% calibration target on the test split**
+  (see the temporal-shift section); the intervals do not change that.
+- **Seed spread is small for the Random Forest and larger for gradient boosting**
+  (augmented recall ± 0.015, false-positive rate ± 0.009), so gaps of that size between
+  gradient-boosting variants should not be read as real. Three seeds is a small sample, and seed
+  spread excludes split and dataset variation.
+- Seed spread was not measured for the fusion detectors or for the evasion results; the
+  evasion numbers elsewhere in this document remain single-seed.
+
+The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
+console output and `report.json` of the run, not recomputed.
 
 ## Limitations
 
