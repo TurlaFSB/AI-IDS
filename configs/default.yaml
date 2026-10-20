@@ -1,0 +1,12 @@
+seed: 42
+target_fpr: 0.01
+operating_fprs: [0.001, 0.01, 0.05]
+split_fractions: [0.60, 0.15, 0.25]
+timestamp_pm_fix_before_hour: 8
+random_forest:
+  n_estimators: 200
+  max_depth: null
+  min_samples_leaf: 1
+isolation_forest:
+  n_estimators: 200
+  max_samples: 256

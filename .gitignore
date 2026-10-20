@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+coverage.xml
+htmlcov/
+build/
+dist/
+*.egg-info/
+
+# Data and model artifacts (never commit captures, datasets, or trained models)
+data/*
+!data/README.md
+/models/
+/reports/
+*.pcap
+*.pcapng
+*.joblib
+
+# Secrets and local config
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Editors and OS
+.idea/
+.vscode/
+.DS_Store
