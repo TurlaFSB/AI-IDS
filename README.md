@@ -125,6 +125,7 @@ See [docs/data-governance.md](docs/data-governance.md) for provenance, privacy, 
 ```text
 ai-ids synth     write a synthetic CICIDS2017-style CSV
 ai-ids train     load, clean, split, train, calibrate, evaluate, and save detectors
+ai-ids holdout   leave-one-attack-family-out generalisation test (slow)
 ai-ids checksum  print SHA-256 digests of dataset files
 ```
 
@@ -145,7 +146,7 @@ report.json        metrics, operating points, per-attack recall, latency, datase
 
 ## Evaluation methodology
 
-- **Chronological, per-class splits.** Within each attack type the earliest 60% of flows train the
+- **Chronological, per-class splits (no flow-level random splits).** Within each attack type the earliest 60% of flows train the
   model, the next 15% calibrate the threshold, and the latest 25% test it
   ([ADR 0002](docs/adr/0002-chronological-split.md)).
 - **Threshold chosen without peeking.** The alert threshold is the benign validation-score
@@ -154,12 +155,45 @@ report.json        metrics, operating points, per-attack recall, latency, datase
 - **Accuracy is never the headline metric.** Traffic is heavily imbalanced; recall, FPR, and
   PR-AUC are reported, with per-attack recall and support.
 - **Latency** is measured per scoring call, single inference thread, after warm-up.
-- Results are reported at several operating points (0.1%, 1%, 5% target FPR).
+- Results are reported at several operating points (0.1%, 1%, 5% target FPR), per capture day,
+  and with a benign-traffic drift summary (Population Stability Index per feature).
 
 ## Results
 
-Real-data results are pending the first full run on CICIDS2017. They will be published here and in
-the [model card](docs/model-card.md) with the exact configuration, dataset checksums, and commit.
+First full run on CIC-IDS-2017 (default config, seed 42, commit `5166bf2`). After cleaning there
+are 2,522,525 flows; the test set has 630,647 flows, of which 106,485 (16.9%) are attacks.
+Alert thresholds were calibrated for a **1% false-positive rate** on validation data.
+
+| Model | Recall | Precision | False-positive rate (test) | F1 | MCC | ROC-AUC | PR-AUC | Macro recall |
+|---|---|---|---|---|---|---|---|---|
+| Random Forest | 0.990 | 0.713 | **0.081** | 0.829 | 0.804 | 0.998 | 0.993 | 0.870 |
+| Isolation Forest | 0.040 | 0.195 | 0.034 | 0.066 | 0.013 | 0.829 | 0.354 | 0.133 |
+
+Scoring latency, single thread: Random Forest 13.3 ms per single flow (p50), 30.6 ms per batch
+of 1,000 (about 32,700 flows/s); Isolation Forest 18.3 ms and 28.1 ms (about 35,600 flows/s).
+
+**What these numbers mean, honestly:**
+
+- **The false-positive rate did not hold.** Thresholds targeted 1% on validation, but test FPR
+  was 8.1% (Random Forest) and 3.4% (Isolation Forest). Benign traffic later in the week differs
+  from earlier benign traffic, so a threshold calibrated once does not stay calibrated. This is
+  the drift problem that retraining and recalibration are meant to address.
+- **Headline recall is dominated by three attack types.** DDoS, DoS Hulk and PortScan are 92% of
+  attack flows. Averaged evenly over attack types, Random Forest recall is 0.87. Bot is missed
+  entirely (recall 0.00, 490 test flows).
+- **In-distribution recall is optimistic.** Attack runs are bursts of near-identical flows, so
+  part of each run is in both train and test. Use `ai-ids holdout` (leave-one-family-out) to
+  measure detection of attack families absent from training.
+- **Random Forest scores are coarse.** The score is the share of trees voting "attack", so very
+  low FPR targets collapse (at a 0.1% target the threshold saturates and nothing is flagged).
+  A finer or calibrated score is needed for low-FPR operation.
+- **The Isolation Forest is a weak baseline** on this dataset: most attacks are not outliers in
+  raw flow-feature space. It detects slowhttptest (72%) but little else.
+- Heartbleed (4 test flows), Infiltration (10) and SQL injection (6) are too small for recall
+  to mean anything.
+
+Reproduce with `ai-ids train`; the full per-attack table, results at other operating points,
+per-day false-positive rates, and feature-drift (PSI) summaries are in `report.json`.
 
 ## Limitations
 
@@ -211,7 +245,9 @@ tests/             unit and end-to-end tests
 
 ## Roadmap
 
-1. **Milestone 2:** PyTorch autoencoder (GPU) as a third detector; corrected-label support.
+1. **Milestone 2:** error analysis of the Bot miss and of false positives by day; finer or
+   calibrated scores for low-FPR operation; PyTorch autoencoder (GPU) as a third detector;
+   corrected-label support.
 2. **Milestone 3:** Live flow capture and real-time scoring service with Prometheus metrics.
 3. **Milestone 4:** Threat-intelligence enrichment (AbuseIPDB, AlienVault OTX) with caching and a
    local blocklist fallback; ATT&CK-tagged alerts.

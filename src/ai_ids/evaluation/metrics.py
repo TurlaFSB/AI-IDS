@@ -69,6 +69,33 @@ def per_class_recall(
     return result
 
 
+def macro_recall(
+    per_class: dict[str, dict[str, float | int]], min_support: int = 1
+) -> float | None:
+    """Unweighted mean of per-attack recall, ignoring attack types below `min_support` flows."""
+    values = [float(v["recall"]) for v in per_class.values() if int(v["support"]) >= min_support]
+    return float(np.mean(values)) if values else None
+
+
+def breakdown_by_group(
+    groups: pd.Series, y_true: BoolArray, y_pred: BoolArray
+) -> dict[str, dict[str, float | int | None]]:
+    """False-positive rate (benign flows) and recall (attack flows) within each group."""
+    result: dict[str, dict[str, float | int | None]] = {}
+    for key in sorted(groups.dropna().unique()):
+        mask = (groups == key).to_numpy()
+        benign = mask & ~y_true
+        attacks = mask & y_true
+        result[str(key)] = {
+            "flows": int(mask.sum()),
+            "benign": int(benign.sum()),
+            "attacks": int(attacks.sum()),
+            "false_positive_rate": float(y_pred[benign].mean()) if benign.any() else None,
+            "recall": float(y_pred[attacks].mean()) if attacks.any() else None,
+        }
+    return result
+
+
 def latency_profile(
     score_fn: Callable[[pd.DataFrame], FloatArray],
     X: pd.DataFrame,

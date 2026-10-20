@@ -27,6 +27,10 @@ def test_train_end_to_end(
     rf = report["models"]["random_forest"]
     assert 0.0 <= rf["test"]["false_positive_rate"] <= 0.05
     assert "batch_1" in rf["latency_single_thread"]
+    assert rf["macro_recall"] is not None
+    assert set(rf["by_day"]) == {"2017-07-03"}
+    assert set(report["benign_drift"]) == {"train_vs_val", "train_vs_test"}
+    assert "top" in report["benign_drift"]["train_vs_test"]
     assert "fpr_0.001" in rf["operating_points"]
     assert load_detector(out / "random_forest", hmac_key=b"test-key").threshold_ is not None
     assert "recall=" in capsys.readouterr().out
@@ -50,3 +54,18 @@ def test_config_rejects_unknown_keys(tmp_path: Path) -> None:
 def test_config_rejects_bad_fpr() -> None:
     with pytest.raises(ValueError, match="target_fpr"):
         TrainConfig.from_mapping({"target_fpr": 2})
+
+
+def test_holdout_command(
+    synthetic_csv: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("holdout: {n_estimators: 10, min_test_support: 20}\n")
+    out = tmp_path / "holdout.json"
+    assert (
+        main(["holdout", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)])
+        == 0
+    )
+    report = json.loads(out.read_text())
+    assert report["families"]
+    assert "recall_unseen=" in capsys.readouterr().out

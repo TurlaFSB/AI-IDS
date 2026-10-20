@@ -15,11 +15,21 @@ import sklearn
 
 from ai_ids import __version__
 from ai_ids.config import TrainConfig
-from ai_ids.data.loader import CATEGORY, IS_ATTACK, LABEL, feature_columns, load_dataset
+from ai_ids.data.loader import (
+    CATEGORY,
+    IS_ATTACK,
+    LABEL,
+    TIMESTAMP,
+    CleaningReport,
+    feature_columns,
+    load_dataset,
+)
 from ai_ids.data.split import DatasetSplit, chronological_split
 from ai_ids.evaluation.metrics import (
     binary_report,
+    breakdown_by_group,
     latency_profile,
+    macro_recall,
     per_class_recall,
     threshold_for_fpr,
 )
@@ -28,6 +38,7 @@ from ai_ids.models.detectors import (
     IsolationForestDetector,
     RandomForestDetector,
 )
+from ai_ids.monitoring.drift import drift_report
 from ai_ids.registry import save_detector
 
 logger = logging.getLogger(__name__)
@@ -71,13 +82,19 @@ def evaluate_detector(
         operating_points[f"fpr_{fpr:g}"] = binary_report(y_true, test_scores, point_threshold)
 
     detector.set_inference_threads(1)
+    per_attack = per_class_recall(split.test[LABEL], y_pred, y_true)
     report: dict[str, Any] = {
         "target_fpr": config.target_fpr,
         "test": binary_report(y_true, test_scores, threshold),
         "operating_points": operating_points,
-        "per_attack_recall": per_class_recall(split.test[LABEL], y_pred, y_true),
+        "per_attack_recall": per_attack,
+        "macro_recall": macro_recall(per_attack),
+        "macro_recall_min_support_30": macro_recall(per_attack, min_support=30),
         "latency_single_thread": latency_profile(detector.score, split.test[features]),
     }
+    if TIMESTAMP in split.test.columns:
+        days = split.test[TIMESTAMP].dt.strftime("%Y-%m-%d")
+        report["by_day"] = breakdown_by_group(days, y_true, y_pred)
     if isinstance(detector, RandomForestDetector):
         predicted = detector.predict_category(split.test[features])
         actual = split.test[CATEGORY].to_numpy()
@@ -85,13 +102,19 @@ def evaluate_detector(
     return report
 
 
-def run_training(
-    data_path: Path,
-    output_dir: Path,
-    config: TrainConfig,
-    *,
-    hmac_key: bytes | None = None,
-) -> dict[str, Any]:
+def _drift_section(split: DatasetSplit, features: list[str]) -> dict[str, Any]:
+    """How far later benign traffic has drifted from the benign traffic used for training."""
+    reference = split.train[~split.train[IS_ATTACK]][features]
+    return {
+        name: drift_report(reference, part[~part[IS_ATTACK]][features])
+        for name, part in (("train_vs_val", split.val), ("train_vs_test", split.test))
+    }
+
+
+def prepare_data(
+    data_path: Path, config: TrainConfig
+) -> tuple[DatasetSplit, list[str], CleaningReport]:
+    """Load, clean, and split a dataset; shared by training and holdout evaluation."""
     df, cleaning = load_dataset(data_path, pm_fix_before_hour=config.timestamp_pm_fix_before_hour)
     features = feature_columns(df)
     split = chronological_split(df, config.split_fractions)
@@ -101,6 +124,17 @@ def run_training(
         "dataset ready",
         extra={"fields": {"features": len(features), "train": len(split.train)}},
     )
+    return split, features, cleaning
+
+
+def run_training(
+    data_path: Path,
+    output_dir: Path,
+    config: TrainConfig,
+    *,
+    hmac_key: bytes | None = None,
+) -> dict[str, Any]:
+    split, features, cleaning = prepare_data(data_path, config)
 
     detectors: list[BaseDetector] = [
         RandomForestDetector(seed=config.seed, **config.random_forest),
@@ -120,6 +154,7 @@ def run_training(
             "rows": {"train": len(split.train), "val": len(split.val), "test": len(split.test)},
             "class_counts": _class_counts(split),
         },
+        "benign_drift": _drift_section(split, features),
         "models": {},
     }
 

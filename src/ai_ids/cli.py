@@ -13,8 +13,9 @@ from pathlib import Path
 from ai_ids import __version__
 from ai_ids.config import TrainConfig
 from ai_ids.data.synthetic import generate_flows
+from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.logging_config import configure_logging
-from ai_ids.pipeline import run_training
+from ai_ids.pipeline import prepare_data, run_training
 
 HMAC_KEY_ENV = "AI_IDS_MODEL_HMAC_KEY"
 
@@ -34,6 +35,13 @@ def _build_parser() -> argparse.ArgumentParser:
     train.add_argument("--data", type=Path, required=True, help="CSV file or directory")
     train.add_argument("--out", type=Path, required=True, help="output directory")
     train.add_argument("--config", type=Path, help="YAML experiment config")
+
+    holdout = sub.add_parser(
+        "holdout", help="leave-one-attack-family-out generalisation test (slow)"
+    )
+    holdout.add_argument("--data", type=Path, required=True, help="CSV file or directory")
+    holdout.add_argument("--out", type=Path, required=True, help="output JSON file")
+    holdout.add_argument("--config", type=Path, help="YAML experiment config")
 
     checksum = sub.add_parser("checksum", help="print SHA-256 digests of dataset files")
     checksum.add_argument("path", type=Path)
@@ -70,7 +78,21 @@ def main(argv: Sequence[str] | None = None) -> int:
             test = result["test"]
             print(
                 f"{name}: recall={test['recall']:.4f} fpr={test['false_positive_rate']:.4f} "
-                f"precision={test['precision']:.4f} pr_auc={test['pr_auc']:.4f}"
+                f"precision={test['precision']:.4f} pr_auc={test['pr_auc']:.4f} "
+                f"macro_recall={result['macro_recall']:.4f}"
+            )
+        return 0
+
+    if args.command == "holdout":
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        split, features, _ = prepare_data(args.data, config)
+        holdout_report = run_holdout(split, features, config)
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(holdout_report, indent=2) + "\n")
+        for family, result in holdout_report["families"].items():
+            print(
+                f"{family}: recall_unseen={result['recall_unseen']:.4f} "
+                f"fpr={result['false_positive_rate']:.4f} support={result['test_support']}"
             )
         return 0
 

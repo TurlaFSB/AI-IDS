@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Evaluation diagnostics: false-positive rate and recall per capture day, macro-averaged recall,
+  and per-feature benign drift (Population Stability Index) in `report.json`.
+- `ai-ids holdout`: leave-one-attack-family-out generalisation test.
+- First real-data results in the README and model card.
 - `configs/light.yaml`: lower-memory training settings for laptops.
 - Repository documentation: architecture, threat model (STRIDE), compliance mapping,
   data governance, model card, and architecture decision records.

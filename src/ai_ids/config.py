@@ -18,6 +18,7 @@ class TrainConfig:
     timestamp_pm_fix_before_hour: int | None = 8
     random_forest: dict[str, Any] = field(default_factory=dict)
     isolation_forest: dict[str, Any] = field(default_factory=dict)
+    holdout: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
     def from_mapping(cls, raw: dict[str, Any]) -> TrainConfig:

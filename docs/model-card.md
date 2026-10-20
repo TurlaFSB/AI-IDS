@@ -1,7 +1,7 @@
 # Model card
 
-Status: **v0.1 baseline. Real-data results pending.** Numbers must come from an actual run on
-CIC-IDS-2017 (`ai-ids train`); none are reported here until then.
+Status: **v0.1 baseline.** First real-data results below (default config, seed 42, commit
+`5166bf2`). Treat them as provisional: see the limitations.
 
 ## Models
 
@@ -32,7 +32,43 @@ medians, identifiers excluded from features.
 
 ## Results
 
-Pending the first run on real data.
+Test set: 630,647 flows (106,485 attacks, 16.9%), after cleaning 3,119,345 rows to 2,522,525.
+Thresholds calibrated for a 1% false-positive rate on benign validation flows.
+
+| Metric | Random Forest | Isolation Forest |
+|---|---|---|
+| Recall | 0.990 | 0.040 |
+| Precision | 0.713 | 0.195 |
+| False-positive rate (measured on test) | **0.081** | 0.034 |
+| F1 | 0.829 | 0.066 |
+| MCC | 0.804 | 0.013 |
+| ROC-AUC | 0.998 | 0.829 |
+| PR-AUC | 0.993 | 0.354 |
+| Macro recall, all attack types | 0.870 | 0.133 |
+| Macro recall, types with >= 30 test flows | 0.901 | 0.096 |
+| Latency, single flow, p50 / p95 / p99 | 13.3 / 15.3 / 16.7 ms | 18.3 / 26.7 / 32.7 ms |
+| Latency, batch of 1,000, p50 | 30.6 ms | 28.1 ms |
+
+Random Forest per-attack recall (test support): DDoS 0.998 (32,005); DoS Hulk 0.992 (43,213);
+PortScan 0.997 (22,706); DoS GoldenEye 0.978 (2,573); DoS slowloris 0.994 (1,347); DoS
+slowhttptest 0.992 (1,308); FTP-Patator 0.999 (1,485); SSH-Patator 0.984 (806); web brute force
+0.997 (368); web XSS 0.976 (164); **Bot 0.000 (490)**; Infiltration 0.600 (10); SQL injection
+0.667 (6); Heartbleed 1.000 (4). The last three are too small to interpret.
+
+Isolation Forest detects slowhttptest (0.724) and, on 10 flows, infiltration (0.8); everything
+else is below 0.15.
+
+### Calibration under drift
+
+| Target FPR (validation) | Random Forest, FPR on test | Isolation Forest, FPR on test |
+|---|---|---|
+| 0.1% | 0.0% (threshold saturates, nothing flagged) | 0.4% |
+| 1% | 8.1% | 3.4% |
+| 5% | 15.3% | 10.4% |
+
+Later benign traffic differs from earlier benign traffic, so thresholds calibrated once on
+validation data do not hold. Random Forest scores take only about 200 distinct values (share of
+trees voting "attack"), which makes low-FPR operating points degenerate.
 
 ## Limitations and risks
 

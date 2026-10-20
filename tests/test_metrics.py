@@ -1,7 +1,14 @@
 import numpy as np
 import pandas as pd
+import pytest
 
-from ai_ids.evaluation.metrics import binary_report, latency_profile, per_class_recall
+from ai_ids.evaluation.metrics import (
+    binary_report,
+    breakdown_by_group,
+    latency_profile,
+    macro_recall,
+    per_class_recall,
+)
 
 
 def test_binary_report_known_values() -> None:
@@ -36,3 +43,26 @@ def test_latency_profile_shape() -> None:
     assert set(profile) == {"batch_1", "batch_100"}
     assert profile["batch_1"]["p50_ms"] <= profile["batch_1"]["p99_ms"]
     assert profile["batch_100"]["flows_per_second"] > 0
+
+
+def test_macro_recall_and_support_filter() -> None:
+    per_class = {
+        "a": {"support": 100, "recall": 1.0},
+        "b": {"support": 100, "recall": 0.0},
+        "tiny": {"support": 3, "recall": 1.0},
+    }
+    assert macro_recall(per_class) == pytest.approx(2 / 3)
+    assert macro_recall(per_class, min_support=30) == 0.5
+    assert macro_recall({}) is None
+
+
+def test_breakdown_by_group() -> None:
+    groups = pd.Series(["d1", "d1", "d1", "d2", "d2", None])
+    y_true = np.array([False, False, True, False, True, False])
+    y_pred = np.array([True, False, True, False, False, True])
+    result = breakdown_by_group(groups, y_true, y_pred)
+    assert set(result) == {"d1", "d2"}
+    assert result["d1"]["false_positive_rate"] == 0.5
+    assert result["d1"]["recall"] == 1.0
+    assert result["d2"]["recall"] == 0.0
+    assert result["d2"]["benign"] == 1
