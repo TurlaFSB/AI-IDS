@@ -72,10 +72,8 @@ ExtraBytes = float | np.ndarray | pd.Series
 
 def _extra(features: pd.DataFrame, extra_bytes: ExtraBytes) -> pd.Series:
     """Padding per flow, as a Series aligned with `features` (a scalar applies to every flow)."""
-    if np.isscalar(extra_bytes):
-        values = pd.Series(float(extra_bytes), index=features.index)
-    else:
-        values = pd.Series(np.asarray(extra_bytes, dtype="float64"), index=features.index)
+    array = np.asarray(extra_bytes, dtype="float64")
+    values = pd.Series(float(array) if array.ndim == 0 else array, index=features.index)
     if (values < 0).any():
         raise ValueError("extra_bytes must be non-negative")
     return values

@@ -31,6 +31,14 @@ pytest            # enforces >= 85% coverage
 
 New behaviour ships with tests. Bug fixes ship with a regression test.
 
+CI runs these gates on Python 3.11, 3.12 and 3.13. Results can differ between versions (for example
+type-checker behaviour), so run the same hash-locked checks on all of them before pushing:
+
+```bash
+./scripts/check_matrix.sh            # all supported versions
+./scripts/check_matrix.sh 3.11       # or just one
+```
+
 ## Dependencies and the lock files
 
 Dependencies are declared in `pyproject.toml` and locked with hashes in `requirements/`.

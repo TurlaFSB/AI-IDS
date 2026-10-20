@@ -18,6 +18,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are superseded.
 
 ### Fixed
+- A typing error in the padding code that only appeared on Python 3.11 (CI caught it); the code is
+  simplified and `scripts/check_matrix.sh` now runs the CI gates on every supported version locally.
 - Dates in CICIDS2017 files are day-first; they were parsed month-first, which mislabelled capture
   days in reports (chronological order was unaffected). Parsing is now day-first by default
   (`timestamp_dayfirst`).
