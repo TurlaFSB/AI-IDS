@@ -8,9 +8,11 @@ flowchart LR
     B --> C[Per-class chronological split]
     C -->|train| D[Random Forest]
     C -->|benign train| E[Isolation Forest]
+    C -->|train| J[Gradient boosting]
     C -->|benign validation| F[FPR threshold calibration]
     D --> F
     E --> F
+    J --> F
     C -->|test| G[Evaluation: recall, FPR, PR-AUC, latency]
     F --> G
     D --> H[Model registry: SHA-256 + optional HMAC]

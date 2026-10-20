@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import os
 import sys
@@ -12,6 +11,7 @@ from pathlib import Path
 
 from ai_ids import __version__
 from ai_ids.config import TrainConfig
+from ai_ids.data.integrity import dataset_checksums
 from ai_ids.data.synthetic import generate_flows
 from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.logging_config import configure_logging
@@ -46,18 +46,6 @@ def _build_parser() -> argparse.ArgumentParser:
     checksum = sub.add_parser("checksum", help="print SHA-256 digests of dataset files")
     checksum.add_argument("path", type=Path)
     return parser
-
-
-def _checksums(path: Path) -> dict[str, str]:
-    files = sorted(path.glob("*.csv")) if path.is_dir() else [path]
-    result = {}
-    for file in files:
-        digest = hashlib.sha256()
-        with file.open("rb") as handle:
-            for chunk in iter(lambda: handle.read(1 << 20), b""):
-                digest.update(chunk)
-        result[file.name] = digest.hexdigest()
-    return result
 
 
 def main(argv: Sequence[str] | None = None) -> int:
@@ -97,7 +85,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
 
     if args.command == "checksum":
-        json.dump(_checksums(args.path), sys.stdout, indent=2)
+        json.dump(dataset_checksums(args.path), sys.stdout, indent=2)
         sys.stdout.write("\n")
         return 0
 

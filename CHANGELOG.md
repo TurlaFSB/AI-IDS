@@ -7,6 +7,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- Gradient-boosting detector with continuous scores (ADR 0005); detectors selectable by name
+  in the experiment config.
+- Reproducibility metadata in `report.json`: SHA-256 digests of the input dataset files and a
+  dirty-working-tree flag next to the git commit.
 - Evaluation diagnostics: false-positive rate and recall per capture day, macro-averaged recall,
   and per-feature benign drift (Population Stability Index) in `report.json`.
 - `ai-ids holdout`: leave-one-attack-family-out generalisation test.

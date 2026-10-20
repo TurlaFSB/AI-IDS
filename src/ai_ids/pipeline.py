@@ -7,6 +7,7 @@ import json
 import logging
 import platform
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,7 @@ import sklearn
 
 from ai_ids import __version__
 from ai_ids.config import TrainConfig
+from ai_ids.data.integrity import dataset_checksums
 from ai_ids.data.loader import (
     CATEGORY,
     IS_ATTACK,
@@ -35,6 +37,7 @@ from ai_ids.evaluation.metrics import (
 )
 from ai_ids.models.detectors import (
     BaseDetector,
+    HistGradientBoostingDetector,
     IsolationForestDetector,
     RandomForestDetector,
 )
@@ -56,6 +59,34 @@ def _git_commit() -> str | None:
     except (OSError, subprocess.SubprocessError):
         return None
     return result.stdout.strip() or None
+
+
+def build_detectors(config: TrainConfig) -> list[BaseDetector]:
+    factories: dict[str, Callable[[], BaseDetector]] = {
+        "random_forest": lambda: RandomForestDetector(seed=config.seed, **config.random_forest),
+        "isolation_forest": lambda: IsolationForestDetector(
+            seed=config.seed, **config.isolation_forest
+        ),
+        "hist_gradient_boosting": lambda: HistGradientBoostingDetector(
+            seed=config.seed, **config.hist_gradient_boosting
+        ),
+    }
+    return [factories[name]() for name in config.detectors]
+
+
+def _git_dirty() -> bool | None:
+    """True if the working tree has uncommitted changes (results then aren't reproducible)."""
+    try:
+        result = subprocess.run(
+            ["git", "status", "--porcelain"],  # noqa: S607
+            capture_output=True,
+            text=True,
+            timeout=10,
+            check=True,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    return bool(result.stdout.strip())
 
 
 def _class_counts(split: DatasetSplit) -> dict[str, dict[str, int]]:
@@ -136,10 +167,7 @@ def run_training(
 ) -> dict[str, Any]:
     split, features, cleaning = prepare_data(data_path, config)
 
-    detectors: list[BaseDetector] = [
-        RandomForestDetector(seed=config.seed, **config.random_forest),
-        IsolationForestDetector(seed=config.seed, **config.isolation_forest),
-    ]
+    detectors = build_detectors(config)
     report: dict[str, Any] = {
         "version": __version__,
         "config": dataclasses.asdict(config),
@@ -147,8 +175,10 @@ def run_training(
             "python": platform.python_version(),
             "scikit_learn": sklearn.__version__,
             "git_commit": _git_commit(),
+            "git_dirty": _git_dirty(),
         },
         "dataset": {
+            "files_sha256": dataset_checksums(data_path),
             "cleaning": cleaning.to_dict(),
             "n_features": len(features),
             "rows": {"train": len(split.train), "val": len(split.val), "test": len(split.test)},

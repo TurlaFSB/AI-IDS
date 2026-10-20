@@ -9,6 +9,7 @@ Status: **v0.1 baseline.** First real-data results below (default config, seed 4
 |---|---|---|---|
 | Random Forest (`random_forest`) | Supervised multi-class classifier (scikit-learn), class-balanced | Train split, all categories | 1 − P(benign) |
 | Isolation Forest (`isolation_forest`) | Unsupervised novelty detector (scikit-learn), rank-transformed features | Train split, benign flows only | Negated isolation score |
+| Gradient boosting (`hist_gradient_boosting`) | Supervised attack-vs-benign classifier (scikit-learn), balanced class weights, continuous scores (ADR 0005) | Train split, all categories | P(attack) |
 
 ## Intended use
 
@@ -31,6 +32,9 @@ medians, identifiers excluded from features.
 - Results at several operating points (0.1%, 1%, 5% target FPR) are included in `report.json`.
 
 ## Results
+
+Results below are for the Random Forest and Isolation Forest. The gradient-boosting detector was
+added afterwards and has not yet been evaluated on real data.
 
 Test set: 630,647 flows (106,485 attacks, 16.9%), after cleaning 3,119,345 rows to 2,522,525.
 Thresholds calibrated for a 1% false-positive rate on benign validation flows.

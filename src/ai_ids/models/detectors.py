@@ -8,10 +8,15 @@ from typing import Any, ClassVar, Self
 import numpy as np
 import pandas as pd
 from numpy.typing import NDArray
-from sklearn.ensemble import IsolationForest, RandomForestClassifier
+from sklearn.ensemble import (
+    HistGradientBoostingClassifier,
+    IsolationForest,
+    RandomForestClassifier,
+)
 from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import QuantileTransformer
+from threadpoolctl import threadpool_limits
 
 from ai_ids.evaluation.metrics import threshold_for_fpr
 from ai_ids.labels import BENIGN
@@ -167,3 +172,51 @@ class IsolationForestDetector(BaseDetector):
 
     def set_inference_threads(self, n_jobs: int) -> None:
         self._fitted().named_steps["iso"].n_jobs = n_jobs
+
+
+class HistGradientBoostingDetector(BaseDetector):
+    """Supervised attack-vs-benign gradient boosting; score is P(attack).
+
+    Unlike a Random Forest vote share, boosted probabilities are continuous, so alert
+    thresholds at very low false-positive rates remain meaningful. Missing values are handled
+    natively by the estimator.
+    """
+
+    name = "hist_gradient_boosting"
+
+    def __init__(
+        self,
+        max_iter: int = 200,
+        learning_rate: float = 0.1,
+        max_leaf_nodes: int = 31,
+        seed: int = 42,
+        n_jobs: int | None = None,
+    ) -> None:
+        super().__init__()
+        self._threads = n_jobs
+        self._params: dict[str, Any] = {
+            "max_iter": max_iter,
+            "learning_rate": learning_rate,
+            "max_leaf_nodes": max_leaf_nodes,
+            "class_weight": "balanced",
+            "early_stopping": False,
+            "random_state": seed,
+        }
+
+    def fit(self, X: pd.DataFrame, categories: pd.Series) -> Self:
+        is_attack = (categories != BENIGN).to_numpy()
+        if is_attack.all() or not is_attack.any():
+            raise ValueError("training data must contain both benign and attack flows")
+        self.feature_names_ = list(X.columns)
+        self._pipeline = Pipeline([("clf", HistGradientBoostingClassifier(**self._params))])
+        with threadpool_limits(limits=self._threads):
+            self._pipeline.fit(X, is_attack)
+        return self
+
+    def score(self, X: pd.DataFrame) -> FloatArray:
+        with threadpool_limits(limits=self._threads):
+            proba = self._fitted().predict_proba(self._align(X))
+        return np.asarray(proba[:, 1], dtype=np.float64)
+
+    def set_inference_threads(self, n_jobs: int) -> None:
+        self._threads = n_jobs

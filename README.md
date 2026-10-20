@@ -48,7 +48,7 @@ model artifacts.
 |---|---|
 | Data | CICIDS2017 loader: label normalisation, duplicate and non-finite value handling, timestamp repair |
 | Splitting | Per-class chronological train / validation / test split (no random splits) |
-| Detectors | Random Forest (supervised, multi-class) and Isolation Forest (unsupervised, benign-only training) behind one scoring contract |
+| Detectors | Random Forest (supervised, multi-class), Isolation Forest (unsupervised, benign-only training), and gradient boosting (supervised, continuous scores) behind one scoring contract |
 | Operating point | Alert threshold calibrated on held-out benign traffic to a target false-positive rate |
 | Metrics | Recall, precision, F1, FPR, MCC, ROC-AUC, PR-AUC, per-attack recall with support, scoring latency (p50/p95/p99) |
 | Model registry | SHA-256 manifest per artifact, optional HMAC-SHA256 signature, recorded environment versions |
@@ -63,13 +63,16 @@ flowchart LR
     B --> C[Per-class chronological split]
     C -->|train| D[Random Forest]
     C -->|benign train| E[Isolation Forest]
+    C -->|train| J[Gradient boosting]
     C -->|benign validation| F[FPR threshold calibration]
     D --> F
     E --> F
+    J --> F
     C -->|test| G[Evaluation]
     F --> G
     D --> H[Model registry]
     E --> H
+    J --> H
     G --> I[report.json]
 ```
 
@@ -139,9 +142,9 @@ training; the same key is then required to load them.
 Each run writes to the output directory:
 
 ```text
-random_forest/model.joblib, manifest.json
-isolation_forest/model.joblib, manifest.json
-report.json        metrics, operating points, per-attack recall, latency, dataset statistics
+<detector>/model.joblib, manifest.json     one directory per selected detector
+report.json   metrics, operating points, per-attack recall, per-day FPR, drift, latency,
+              dataset file SHA-256 digests, git commit and dirty flag
 ```
 
 ## Evaluation methodology
@@ -160,7 +163,8 @@ report.json        metrics, operating points, per-attack recall, latency, datase
 
 ## Results
 
-First full run on CIC-IDS-2017 (default config, seed 42, commit `5166bf2`). After cleaning there
+First full run on CIC-IDS-2017 (default config at the time, seed 42, commit `5166bf2`; Random Forest and Isolation Forest only,
+the gradient-boosting detector has not been evaluated on real data yet). After cleaning there
 are 2,522,525 flows; the test set has 630,647 flows, of which 106,485 (16.9%) are attacks.
 Alert thresholds were calibrated for a **1% false-positive rate** on validation data.
 

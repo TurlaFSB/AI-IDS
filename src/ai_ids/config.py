@@ -8,6 +8,8 @@ from typing import Any
 
 import yaml
 
+DEFAULT_DETECTORS = ("random_forest", "isolation_forest", "hist_gradient_boosting")
+
 
 @dataclass(frozen=True)
 class TrainConfig:
@@ -18,6 +20,8 @@ class TrainConfig:
     timestamp_pm_fix_before_hour: int | None = 8
     random_forest: dict[str, Any] = field(default_factory=dict)
     isolation_forest: dict[str, Any] = field(default_factory=dict)
+    hist_gradient_boosting: dict[str, Any] = field(default_factory=dict)
+    detectors: tuple[str, ...] = DEFAULT_DETECTORS
     holdout: dict[str, Any] = field(default_factory=dict)
 
     @classmethod
@@ -27,12 +31,15 @@ class TrainConfig:
         if unknown:
             raise ValueError(f"unknown config keys: {unknown}")
         values = dict(raw)
-        for key in ("operating_fprs", "split_fractions"):
+        for key in ("operating_fprs", "split_fractions", "detectors"):
             if key in values:
                 values[key] = tuple(values[key])
         config = cls(**values)
         if not 0.0 < config.target_fpr < 1.0:
             raise ValueError("target_fpr must be in (0, 1)")
+        unknown_detectors = sorted(set(config.detectors) - set(DEFAULT_DETECTORS))
+        if unknown_detectors or not config.detectors:
+            raise ValueError(f"detectors must be a non-empty subset of {DEFAULT_DETECTORS}")
         return config
 
     @classmethod

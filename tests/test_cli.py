@@ -5,6 +5,7 @@ import pytest
 
 from ai_ids.cli import main
 from ai_ids.config import TrainConfig
+from ai_ids.data.integrity import dataset_checksums
 from ai_ids.registry import load_detector
 
 
@@ -17,17 +18,30 @@ def test_train_end_to_end(
     monkeypatch.setenv("AI_IDS_MODEL_HMAC_KEY", "test-key")
     out = tmp_path / "run"
     cfg = tmp_path / "cfg.yaml"
-    cfg.write_text("random_forest: {n_estimators: 20}\nisolation_forest: {n_estimators: 20}\n")
+    cfg.write_text(
+        "random_forest: {n_estimators: 20}\n"
+        "isolation_forest: {n_estimators: 20}\n"
+        "hist_gradient_boosting: {max_iter: 20}\n"
+    )
     assert (
         main(["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]) == 0
     )
 
     report = json.loads((out / "report.json").read_text())
-    assert set(report["models"]) == {"random_forest", "isolation_forest"}
+    assert set(report["models"]) == {
+        "random_forest",
+        "isolation_forest",
+        "hist_gradient_boosting",
+    }
     rf = report["models"]["random_forest"]
     assert 0.0 <= rf["test"]["false_positive_rate"] <= 0.05
     assert "batch_1" in rf["latency_single_thread"]
     assert rf["macro_recall"] is not None
+    assert (
+        report["dataset"]["files_sha256"]["flows.csv"]
+        == dataset_checksums(synthetic_csv)["flows.csv"]
+    )
+    assert "git_dirty" in report["environment"]
     assert set(rf["by_day"]) == {"2017-07-03"}
     assert set(report["benign_drift"]) == {"train_vs_val", "train_vs_test"}
     assert "top" in report["benign_drift"]["train_vs_test"]
@@ -69,3 +83,21 @@ def test_holdout_command(
     report = json.loads(out.read_text())
     assert report["families"]
     assert "recall_unseen=" in capsys.readouterr().out
+
+
+def test_config_rejects_unknown_detector() -> None:
+    with pytest.raises(ValueError, match="detectors"):
+        TrainConfig.from_mapping({"detectors": ["random_forest", "magic"]})
+    with pytest.raises(ValueError, match="detectors"):
+        TrainConfig.from_mapping({"detectors": []})
+
+
+def test_detector_selection(synthetic_csv: Path, tmp_path: Path) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("detectors: [hist_gradient_boosting]\nhist_gradient_boosting: {max_iter: 10}\n")
+    out = tmp_path / "run"
+    assert (
+        main(["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]) == 0
+    )
+    report = json.loads((out / "report.json").read_text())
+    assert set(report["models"]) == {"hist_gradient_boosting"}

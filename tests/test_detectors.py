@@ -4,7 +4,11 @@ import pytest
 
 from ai_ids.data.loader import CATEGORY, IS_ATTACK, feature_columns
 from ai_ids.data.split import chronological_split
-from ai_ids.models.detectors import IsolationForestDetector, RandomForestDetector
+from ai_ids.models.detectors import (
+    HistGradientBoostingDetector,
+    IsolationForestDetector,
+    RandomForestDetector,
+)
 
 
 @pytest.fixture(scope="module")
@@ -77,3 +81,24 @@ def test_invalid_target_fpr_rejected() -> None:
         det.calibrate(np.array([0.1]), 1.5)
     with pytest.raises(ValueError, match="benign"):
         det.calibrate(np.array([]), 0.01)
+
+
+def test_gradient_boosting_separates_attacks_with_continuous_scores(split, features) -> None:  # type: ignore[no-untyped-def]
+    det = HistGradientBoostingDetector(max_iter=30, seed=1, n_jobs=2).fit(
+        split.train[features], split.train[CATEGORY]
+    )
+    scores = det.score(split.test[features])
+    y = split.test[IS_ATTACK].to_numpy()
+    assert scores[y].mean() > scores[~y].mean()
+    assert len(np.unique(scores)) > 200  # finer-grained than a 200-tree vote share
+    det.set_inference_threads(1)
+    assert det.score(split.test[features].head(5)).shape == (5,)
+
+
+def test_gradient_boosting_requires_both_classes(split, features) -> None:  # type: ignore[no-untyped-def]
+    benign = split.train[~split.train[IS_ATTACK]]
+    attacks = split.train[split.train[IS_ATTACK]]
+    with pytest.raises(ValueError, match="both"):
+        HistGradientBoostingDetector().fit(benign[features], benign[CATEGORY])
+    with pytest.raises(ValueError, match="both"):
+        HistGradientBoostingDetector().fit(attacks[features], attacks[CATEGORY])
