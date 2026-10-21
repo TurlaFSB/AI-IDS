@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from ai_ids.data import loader
 from ai_ids.data.loader import (
     IS_ATTACK,
     LABEL,
@@ -103,3 +104,27 @@ def test_month_first_still_available() -> None:
     df = pd.DataFrame({"timestamp": ["4/7/2017 9:00"], "x": [1.0], "label": ["BENIGN"]})
     cleaned_df, _ = clean_flows(df, dayfirst=False)
     assert cleaned_df[TIMESTAMP].iloc[0].month == 4
+
+
+def test_files_at_the_spreadsheet_row_limit_are_flagged(
+    synthetic_csv: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    frame = pd.read_csv(synthetic_csv, encoding="latin-1")
+    exact = tmp_path / "exact.csv"
+    frame.head(500).to_csv(exact, index=False, encoding="latin-1")
+    other = tmp_path / "other.csv"
+    frame.head(400).to_csv(other, index=False, encoding="latin-1")
+
+    monkeypatch.setattr(loader, "EXCEL_MAX_DATA_ROWS", 500)
+    with caplog.at_level("WARNING"):
+        _, report = loader.load_dataset(tmp_path)
+    assert report.possibly_truncated_files == ["exact.csv"]
+    assert report.to_dict()["possibly_truncated_files"] == ["exact.csv"]
+    assert any("truncated" in record.getMessage() for record in caplog.records)
+
+    monkeypatch.setattr(loader, "EXCEL_MAX_DATA_ROWS", 1_048_575)
+    _, clean_report = loader.load_dataset(tmp_path)
+    assert clean_report.possibly_truncated_files == []

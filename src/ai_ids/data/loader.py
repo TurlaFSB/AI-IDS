@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 import re
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 
 import numpy as np
@@ -22,6 +22,10 @@ TIMESTAMP = "timestamp"
 IDENTIFIER_COLUMNS = frozenset({"flow_id", "source_ip", "destination_ip", "source_port", TIMESTAMP})
 NON_FEATURE_COLUMNS = IDENTIFIER_COLUMNS | {LABEL, CATEGORY, IS_ATTACK}
 
+# A spreadsheet export stops at 1,048,576 rows including the header. A CSV with exactly this many
+# data rows was almost certainly cut off there and is missing the rest of its capture.
+EXCEL_MAX_DATA_ROWS = 1_048_575
+
 # CICIDS2017 ships "Fwd Header Length" twice; the second copy is exported as ".1".
 _KNOWN_DUPLICATE_COLUMNS = {"fwd_header_length_1": "fwd_header_length"}
 
@@ -35,6 +39,7 @@ class CleaningReport:
     infinite_values_replaced: int
     missing_values: int
     columns_dropped: list[str]
+    possibly_truncated_files: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -210,8 +215,17 @@ def load_dataset(
         raise FileNotFoundError(f"no CSV files found at {path}")
     frames = [read_csv_file(f) for f in files]
     logger.info("loaded csv files", extra={"fields": {"files": [f.name for f in files]}})
-    return clean_flows(
+    truncated = [
+        f.name for f, frame in zip(files, frames, strict=True) if len(frame) == EXCEL_MAX_DATA_ROWS
+    ]
+    if truncated:
+        logger.warning(
+            "file row count equals the spreadsheet limit; it was probably truncated",
+            extra={"fields": {"files": truncated, "rows": EXCEL_MAX_DATA_ROWS}},
+        )
+    cleaned, report = clean_flows(
         pd.concat(frames, ignore_index=True),
         pm_fix_before_hour=pm_fix_before_hour,
         dayfirst=dayfirst,
     )
+    return cleaned, replace(report, possibly_truncated_files=truncated)

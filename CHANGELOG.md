@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- The loader flags CSV files whose row count equals the spreadsheet limit (1,048,575 data rows) as
+  probably truncated, in the log and in the cleaning report.
 - `ai-ids adaptive`: per-flow best-of-grid evasion adversary (timing and forward padding) with a
   benign control (ADR 0012). No results recorded yet.
 - `ai-ids family`: descriptive comparison of one attack family across two datasets (which features

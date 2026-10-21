@@ -494,7 +494,8 @@ setting.
 
 **Data caveat for everything in this section.** Each of the three 2018 day files holds exactly
 1,048,575 rows, which is Excel's row limit minus the header, so they were almost certainly truncated
-by an Excel export and contain only the first part of each day. Attack counts for the DoS and web
+by an Excel export and contain only the first part of each day (the loader now flags any file with
+that exact row count in the log and in the cleaning report). Attack counts for the DoS and web
 attack classes are therefore partial (the 118 web-attack flows are far fewer than that class should
 have; we did not verify the original counts), and the attack mix here is not the dataset's full mix.
 The Bot day looks complete enough to matter (its Bot flows are numerous), but that is not verified

@@ -60,5 +60,6 @@ counted, and excluded from both slices.
 The three 2018 day files used for the first run each contain exactly 1,048,575 rows, Excel's row
 limit minus the header, so they were almost certainly truncated by an Excel export. Attack counts for
 some classes are partial and the mix is not the dataset's. The results are a cross-dataset smoke test,
-not a full benchmark. A future run should use untruncated per-day files, and `ai-ids transfer`
-should warn when a file's row count equals the Excel limit (not yet implemented).
+not a full benchmark. A future run should use untruncated per-day files, and the loader
+now warns, and records `possibly_truncated_files` in the cleaning report, when a file's row count
+equals the Excel limit.
