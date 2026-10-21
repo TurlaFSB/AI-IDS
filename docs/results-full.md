@@ -118,7 +118,7 @@ Recall by attack category on the test split:
 
   For the Random Forest, recall under padding rises from about 0.51 to 0.96-0.99 with no increase in
   benign flows flagged and no loss on clean data (macro recall 0.870 to 0.884); the full table is in
-  the [model card](docs/model-card.md). Gradient boosting becomes robust to slowing and forward
+  the [model card](model-card.md). Gradient boosting becomes robust to slowing and forward
   padding but its clean false-positive rate rises from 0.26% to 7.0% and precision falls from
   98.5% to 74.2%; the extra false positives are concentrated on two hosts (99.8% of them; 44% of one
   host's benign flows), the same scan-like traffic that drives the Random Forest's, and with those
@@ -194,7 +194,7 @@ published by Engelen, Rimmer and Joosen (IEEE SPW 2021) and Liu, Engelen, Lynar,
 and evaluates on the corrected labels (`configs/corrected.yaml`). Flows that belong to an attack
 timeline but carry no attack payload are dropped and counted. This corrects labels only, not the
 flows (the authors also repaired the flow extractor), and the port has not been checked against
-their corrected CSVs; see [ADR 0013](docs/adr/0013-corrected-labels.md).
+their corrected CSVs; see [ADR 0013](adr/0013-corrected-labels.md).
 
 **First relabel run** (`ai-ids relabel`, all eight CICIDS2017 files, 3,119,345 flows; counts are before
 deduplication): 2,918,597 flows keep their label, **101,084 benign flows become attack**, 25 attack
