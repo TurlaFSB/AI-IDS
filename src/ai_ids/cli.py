@@ -77,6 +77,12 @@ def _build_parser() -> argparse.ArgumentParser:
     transfer.add_argument("--config", type=Path, help="YAML experiment config used for training")
     transfer.add_argument("--max-rows", type=int, help="seeded random sample of the cleaned rows")
     transfer.add_argument(
+        "--calibration-fraction",
+        type=float,
+        help="also calibrate on benign flows from the earliest fraction of the target and test "
+        "on the rest (a deployable counterpart of the oracle point)",
+    )
+    transfer.add_argument(
         "--allow-missing-features",
         action="store_true",
         help="impute features the target lacks instead of failing (weakens the comparison)",
@@ -268,6 +274,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             detector,
             allow_missing=args.allow_missing_features,
             max_rows=args.max_rows,
+            calibration_fraction=args.calibration_fraction,
         )
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(result, indent=2, default=str) + "\n")
@@ -278,6 +285,15 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"fpr={point['false_positive_rate']:.4f} precision={point['precision']:.4f} "
                 f"pr_auc={point['pr_auc']:.4f}"
             )
+        local_study = result.get("local_calibration_study")
+        if local_study:
+            for name in ("local_calibration", "stored_threshold_same_flows"):
+                point = local_study[name]
+                print(
+                    f"{result['detector']} [{name}, later flows]: "
+                    f"recall={point['recall']:.4f} fpr={point['false_positive_rate']:.4f} "
+                    f"precision={point['precision']:.4f}"
+                )
         return 0
 
     if args.command == "checksum":

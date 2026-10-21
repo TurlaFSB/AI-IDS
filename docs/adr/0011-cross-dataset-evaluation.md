@@ -41,3 +41,13 @@ The column aliases matched all 78 model features on three real 2018 day files. A
 2017 failed to transfer for both models tested (recall below 0.09); the oracle point separated the
 causes: gradient boosting still ranked well and would recover to 0.83 recall, the Random Forest did
 not (0.127). Numbers and caveats are in the README.
+
+## Addendum: local calibration
+The oracle point uses all target benign labels, including those of the flows it is evaluated on, so
+it cannot be deployed. `--calibration-fraction F` adds a leakage-free counterpart: the threshold is
+set from benign flows in the earliest fraction F of the target (by time) at the training false-
+positive target, and every reported metric is computed on the later flows only; the stored
+threshold is reported on the same later flows. It assumes an operator can obtain a labelled-benign
+or confidently-benign window from the new network, which is plausible but is an assumption. The
+early slice also differs in attack mix from the later flows when the target spans several days, and
+that is stated in the report. No result for it has been recorded yet.

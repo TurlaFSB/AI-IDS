@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `ai-ids transfer --calibration-fraction`: calibrate on the earliest slice of the target's benign
+  traffic and evaluate on later flows only, a leakage-free counterpart of the oracle point.
 - `ai-ids transfer`: score a different dataset (CSE-CIC-IDS2018 column names and labels are
   supported) with a saved model and fixed threshold, reporting threshold-free metrics, the
   stored-threshold result and an oracle re-calibrated upper bound (ADR 0011). The first

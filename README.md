@@ -403,6 +403,11 @@ attacks 118 in total). All 78 model features matched after column aliasing.
 | Random Forest, evasion-aware | 0.085 / 0.0005 / 0.930 | 0.127 / 0.0030 | 0.506 |
 | Gradient boosting | 0.049 / 0.0001 / 0.972 | 0.830 / 0.0026 | 0.898 |
 
+Adding `--calibration-fraction 0.15` also reports a deployable counterpart: the threshold is set
+from benign flows in the earliest 15% of the target by time and every metric is computed on the
+later flows only (the stored threshold is reported on the same flows). No numbers for it are
+recorded yet.
+
 The "oracle" point chooses a threshold from the target's own benign labels at the training false-
 positive target, so it is an upper bound on what recalibration could recover, not a deployable
 setting.

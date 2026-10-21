@@ -94,12 +94,64 @@ def _operating_point(
     return result
 
 
+def local_calibration(
+    frame: pd.DataFrame,
+    scores: np.ndarray,
+    y_true: np.ndarray,
+    stored_threshold: float,
+    target_fpr: float,
+    fraction: float,
+) -> dict[str, Any]:
+    """Calibrate on the earliest slice of the target's benign traffic and test on the rest.
+
+    This is the deployable counterpart of the oracle point: only benign flows from the first
+    `fraction` of the target (by time) set the threshold, and every metric is computed on later
+    flows only, so no evaluated flow influenced it. The stored threshold is reported on the same
+    later flows for a like-for-like comparison.
+    """
+    if not 0.0 < fraction < 0.9:
+        raise ValueError("calibration_fraction must be in (0, 0.9)")
+    if TIMESTAMP not in frame.columns or frame[TIMESTAMP].isna().any():
+        raise ValueError("local calibration needs valid timestamps on every target flow")
+    order = np.argsort(frame[TIMESTAMP].to_numpy(), kind="stable")
+    cut = int(len(order) * fraction)
+    calibration, evaluation = order[:cut], order[cut:]
+    benign_scores = scores[calibration][~y_true[calibration]]
+    if benign_scores.size == 0:
+        raise ValueError("no benign flows in the calibration slice")
+    threshold = threshold_for_fpr(benign_scores, target_fpr)
+    later = frame.iloc[evaluation]
+    later_scores, later_true = scores[evaluation], y_true[evaluation]
+    if not later_true.any() or later_true.all():
+        raise ValueError("the evaluation slice must contain both benign and attack flows")
+    return {
+        "note": (
+            "threshold set from benign flows in the earliest part of the target only; metrics "
+            "are on the later flows, which did not influence it"
+        ),
+        "calibration_fraction": fraction,
+        "calibration_flows": int(cut),
+        "calibration_benign_flows": int(benign_scores.size),
+        "calibration_window": [
+            str(frame[TIMESTAMP].iloc[calibration].min()),
+            str(frame[TIMESTAMP].iloc[calibration].max()),
+        ],
+        "evaluation_flows": len(evaluation),
+        "evaluation_attacks": int(later_true.sum()),
+        "local_calibration": _operating_point(later, later_true, later_scores, threshold),
+        "stored_threshold_same_flows": _operating_point(
+            later, later_true, later_scores, stored_threshold
+        ),
+    }
+
+
 def evaluate_transfer(
     detector: BaseDetector,
     frame: pd.DataFrame,
     config: TrainConfig,
     *,
     allow_missing: bool = False,
+    calibration_fraction: float | None = None,
 ) -> dict[str, Any]:
     """Evaluate a fitted, calibrated detector on a different dataset without any refitting."""
     if detector.threshold_ is None:
@@ -136,6 +188,10 @@ def evaluate_transfer(
             f"p{q}": float(np.percentile(benign_scores, q)) for q in (50, 90, 99, 99.9)
         },
     }
+    if calibration_fraction is not None:
+        report["local_calibration_study"] = local_calibration(
+            frame, scores, y_true, stored, config.target_fpr, calibration_fraction
+        )
     if TIMESTAMP in frame.columns and frame[TIMESTAMP].notna().any():
         days = frame[TIMESTAMP].dt.strftime("%Y-%m-%d")
         report["by_day"] = breakdown_by_group(days, y_true, y_pred)
@@ -156,6 +212,7 @@ def run_transfer(
     allow_missing: bool = False,
     max_rows: int | None = None,
     pm_fix_before_hour: int | None = None,
+    calibration_fraction: float | None = None,
 ) -> dict[str, Any]:
     """Load the target dataset, evaluate, and record what was evaluated and how."""
     frame, cleaning, sampling = prepare_target(
@@ -165,7 +222,13 @@ def run_transfer(
         max_rows=max_rows,
         seed=config.seed,
     )
-    report = evaluate_transfer(detector, frame, config, allow_missing=allow_missing)
+    report = evaluate_transfer(
+        detector,
+        frame,
+        config,
+        allow_missing=allow_missing,
+        calibration_fraction=calibration_fraction,
+    )
     report["model_dir"] = str(model_dir)
     report["target_dataset"] = {
         "files_sha256": dataset_checksums(data_path),

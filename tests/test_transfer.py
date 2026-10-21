@@ -139,3 +139,29 @@ def test_transfer_cli_end_to_end(
     assert report["detector"] == "random_forest"
     assert report["target_dataset"]["files_sha256"]
     assert "stored_threshold" in capsys.readouterr().out
+
+
+def test_local_calibration_uses_only_the_early_slice(
+    fitted: RandomForestDetector, target_csv: Path
+) -> None:
+    frame, _, _ = prepare_target(target_csv)
+    report = evaluate_transfer(
+        fitted, frame, TrainConfig(bootstrap={"n_resamples": 20}), calibration_fraction=0.3
+    )
+    study = report["local_calibration_study"]
+    assert study["calibration_flows"] == int(len(frame) * 0.3)
+    assert study["evaluation_flows"] == len(frame) - study["calibration_flows"]
+    assert (
+        study["local_calibration"]["threshold"] != study["stored_threshold_same_flows"]["threshold"]
+    )
+    first_later = frame["timestamp"].sort_values().iloc[study["calibration_flows"]]
+    assert pd.Timestamp(study["calibration_window"][1]) <= first_later
+
+
+def test_local_calibration_rejects_bad_fractions(
+    fitted: RandomForestDetector, target_csv: Path
+) -> None:
+    frame, _, _ = prepare_target(target_csv)
+    for bad in (0.0, 0.95):
+        with pytest.raises(ValueError, match="calibration_fraction"):
+            evaluate_transfer(fitted, frame, TrainConfig(), calibration_fraction=bad)
