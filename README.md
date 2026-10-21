@@ -27,7 +27,8 @@ split and an alert threshold calibrated for a **1% false-positive rate**.
 | 2 | **Unseen attack families are mostly missed:** leave-one-family-out recall 0.27 (pooled) against 0.99 on known attacks. | High benchmark recall largely measures recognition of the dataset's attack tools. |
 | 3 | **Feature-space evasion works.** Slowing and padding cut Random Forest recall from 0.99 to 0.52 against a per-flow adaptive adversary; web attacks fall from 0.97 to 0.02. | Evasion-aware training recovers part of it (0.99 to 0.90). A first, asymmetric defence "worked" only by learning padded means attack and is kept as a documented failure (ADR 0008). |
 | 4 | **A 2017 threshold does not transfer to 2018:** recall 0.05 to 0.09 on CSE-CIC-IDS2018. | Gradient boosting still *ranks* 2018 traffic well (PR-AUC 0.90) and reaches recall 0.83 at 0.26% false positives with a threshold set on the target's benign traffic. |
-| 5 | **Bot is invisible at the calibrated threshold** in every detector, yet ranks above most benign traffic. | Held-out AUC 0.86 to 0.90 on 2017; the Random Forest labels all 2018 Bot benign. |
+| 5 | **Bot is invisible at the calibrated threshold** in every detector, yet ranks above most benign traffic. | Held-out AUC 0.86 to 0.90 on 2017; the Random Forest labels all 2018 Bot benign. On corrected labels the 490 held-out Bot flows were "attempted" flows and Bot recall is 0.99. |
+| 6 | **Retrained on the corrected labels, the 1% target roughly holds** (Random Forest 1.3% false positives, recall 0.9997; Bot recall 0.99) | The comparison is easier as well as cleaner (99,638 hard "attempted" flows are dropped), and the label rules use ports that are also model features. Unseen-family and evasion results have not been repeated. |
 
 Read [what is not shown](docs/results-summary.md#what-is-not-shown) before quoting any of these.
 Caveats that matter most: one network and attack toolset per dataset, feature-space (not
@@ -284,8 +285,10 @@ may contain IP addresses) in memory only.
 
 - CICIDS2017 has documented labelling and flow-construction problems (Engelen, Rimmer and Joosen,
   "Troubleshooting an Intrusion Detection Dataset: the CICIDS2017 Case Study", IEEE SPW 2021).
-  Corrected-label support exists (ADR 0013) but has not been run on the real data; the headline
-  numbers use the original labels and should be treated as provisional.
+  Corrected-label retraining (ADR 0013) is recorded in
+  [docs/results-full.md](docs/results-full.md); the headline findings 1 to 5 use the original labels,
+  the rule port is unchecked against the authors' files, and unseen-family and evasion results have
+  not been repeated on corrected labels.
 - Attacks come from a small set of tools, so models learn tool signatures; the
   leave-one-family-out test quantifies how little carries over to unseen families.
 - Very small classes (Heartbleed, Infiltration, and the web attacks under corrected labels) have

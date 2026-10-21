@@ -244,8 +244,8 @@ distinct destination ports on 11 hosts, 2017-07-06 15:10 to 15:45) and `192.168.
 2017-07-07 16:16). With the top host excluded the false-positive rate is 1.69%, and with both
 excluded 0.019%. These are the same hosts and scan-like patterns that drive the Random Forest's
 false positives, so the augmented model's cost is concentrated on the attack-adjacent traffic and
-is not a general loss on ordinary benign traffic. This does **not** show those flows are truly
-attacks: no verified corrected-label source exists here, and excluding hosts after seeing where
+is not a general loss on ordinary benign traffic. This does **not** by itself show those flows are truly
+attacks (the rule-based corrected labels in ADR 0013 classify them as attacks, but that port is unchecked against the authors' files), and excluding hosts after seeing where
 errors fall is a sensitivity analysis, not a performance claim.
 
 ## Uncertainty and fusion (method)
@@ -311,7 +311,7 @@ console output and `report.json` of the run, not recomputed.
 
 - **Dataset artefacts:** CIC-IDS-2017 has documented labelling and flow-construction issues,
   and attacks were generated with a small set of tools, so models may learn tool signatures
-  rather than general behaviour. Corrected-label support exists (ADR 0013) but has not been run on the real data yet.
+  rather than general behaviour. A retraining on rule-based corrected labels (ADR 0013) gives a Random Forest false-positive rate of 1.3% and Bot recall 0.99 (docs/results-full.md); that comparison is easier as well as cleaner, and the rule port is unchecked against the authors' files.
 - **Very small classes** (for example Heartbleed, Infiltration) have tiny test supports; their
   recall estimates are unreliable.
 - **Distribution shift:** performance on other networks is unknown. Drift monitoring and

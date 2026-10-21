@@ -185,7 +185,7 @@ What this does and does not show:
 The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
 console output and `report.json` of the run, not recomputed.
 
-## Corrected labels (tooling ready, retraining results pending)
+## Corrected labels (tooling, first retraining result)
 
 CICIDS2017's shipped labels contain documented errors. `ai-ids relabel --data <2017 folder> --out
 relabel.json` re-labels the original flows with rules re-implemented from the attack timelines
@@ -222,8 +222,45 @@ each class, so those flows were probably the late, "attempted" ones, which would
 Bot; this is consistent with the counts but not confirmed until a model is evaluated on the corrected
 labels. In the Thursday afternoon file 65,634 benign flows become `Infiltration - Portscan`, 4 become
 `Infiltration` and 30 are dropped; of the 36 original Infiltration flows 35 stay. These counts are
-what the port produces; whether they match the authors' own corrected CSVs has not been checked. No model has been
-retrained on them yet.
+what the port produces; whether they match the authors' own corrected CSVs has not been checked.
+
+**First retraining on the corrected labels** (`ai-ids train --config configs/corrected.yaml`, seed 42,
+all eight files). After cleaning: 2,485,849 flows (288,602 unlabelled rows and 245,256 duplicates
+removed; the duplicate count differs from the original-label run because relabelling changes which
+rows are identical); training set 1,491,503. Alert thresholds again target 1% false positives on
+benign validation. Test-set results, copied from the run's console output and `report.json`
+(commit and dataset digests are recorded in that report):
+
+| Model | Recall | False-positive rate | Precision | PR-AUC | Macro recall |
+|---|---|---|---|---|---|
+| Random Forest | 0.9997 | 0.0132 | 0.9465 | 0.9997 | 0.9990 |
+| Random Forest, evasion-aware | 0.9996 | 0.0130 | 0.9474 | 0.9997 | 0.9803 |
+| Gradient boosting | 0.9997 | 0.0111 | 0.9549 | 0.9999 | 0.9998 |
+| Gradient boosting, evasion-aware | 0.9994 | 0.0109 | 0.9555 | 0.9977 | 0.9787 |
+| Fusion, mean | 0.9994 | 0.0120 | 0.9511 | 0.9997 | 0.9790 |
+| Fusion, max | 0.9997 | 0.0142 | 0.9426 | 0.9995 | 0.9809 |
+
+Per-category recall is 1.00 for every category except botnet (Random Forest and its augmented variant
+0.99; gradient boosting 1.00) and web attacks (0.94 for the three augmented and fused models, 1.00 for
+the plain models). Compared with the original labels:
+
+- **The false-positive rate fell from 8.1% to 1.3% (Random Forest)** and from 0.26% to 1.1% for plain
+  gradient boosting, which had over-shot its target in the other direction. Both are now near the 1%
+  target, which supports the earlier reading that the original-label miss was mostly label noise
+  (the scan-like hosts are attacks under the corrected rules).
+- **Bot recall rose from 0 to 0.99-1.00**, consistent with the 490 held-out Bot flows having been the
+  late "attempted" flows that the corrected rules drop.
+
+Read these numbers with care. (1) The comparison is not like for like: the corrected run removes
+99,638 "attempted" flows, which are plausibly the hardest ones, so the test set is easier as well as
+cleaner. (2) Recall at 0.999 means the benchmark is essentially solved in-distribution, which says
+nothing about unseen families, other networks or evasion; those experiments have not been repeated
+on the corrected labels. (3) Web attacks have only 74, 18 and 25 flows in total, so their recall
+rests on a handful of test flows. (4) The label rules use time windows, addresses and ports from the
+published timelines, and destination port is a model feature, so some of the gain could be the
+model learning the rules rather than the traffic; a feature-ablation check has not been run. (5) One
+seed, no bootstrap intervals read out yet, and the port of the rules is still unchecked against the
+authors' corrected files.
 
 ## Attack-family comparison across datasets
 
