@@ -419,8 +419,15 @@ After cleaning, the corrected counts include 40,306 `infiltration_portscan` flow
 the compromised host `192.168.10.8` that dominated our models' false positives was labelled benign
 originally) and 159,355 DDoS flows (31,339 more than before, the server's side of the DDoS). Web attacks
 shrink to 74 brute-force, 18 XSS and 25 SQL-injection flows because most of the original web-attack
-flows are attempts without attack payload. Bot falls to 1,459 flows. These counts are what the port
-produces; whether they match the authors' own corrected CSVs has not been checked. No model has been
+flows are attempts without attack payload. Bot falls to 1,459 flows: of the 1,966 raw Bot flows, 1,472
+stay Bot, 4 become benign and 490 are dropped as attempted (the rules' Bot window is 10:04-11:02
+local, matching the dataset's documented 10:02-11:02; later flows from the same hosts are attempts).
+The held-out Bot test set had exactly 490 flows and the chronological split takes the last 25% of
+each class, so those flows were probably the late, "attempted" ones, which would explain recall 0 on
+Bot; this is consistent with the counts but not confirmed until a model is evaluated on the corrected
+labels. In the Thursday afternoon file 65,634 benign flows become `Infiltration - Portscan`, 4 become
+`Infiltration` and 30 are dropped; of the 36 original Infiltration flows 35 stay. These counts are
+what the port produces; whether they match the authors' own corrected CSVs has not been checked. No model has been
 retrained on them yet.
 
 ### Attack-family comparison across datasets

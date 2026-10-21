@@ -48,5 +48,8 @@ modified flow extractor and their scripts, which this project cannot run on a la
 infiltration file, 31,339 in the Friday DDoS file); 25 attack flows become benign; 1 changes attack
 type; 99,638 are dropped as attempted (86,336 of them on Wednesday). The totals reconcile exactly.
 The scan from `192.168.10.8` becomes the `infiltration_portscan` class (40,306 flows after cleaning)
-and web attacks shrink to about 117 flows. Whether these counts agree with the authors' corrected
+and web attacks shrink to about 117 flows. Of 1,966 raw Bot flows, 1,472 stay Bot, 4 become benign
+and 490 are dropped as attempted (flows after the documented Bot window ends), the same count as the
+held-out Bot test set, so that set probably consisted of attempted flows; not confirmed until a model
+is evaluated on the corrected labels. Whether these counts agree with the authors' corrected
 CSVs is not checked; retraining on the corrected labels has not been done.

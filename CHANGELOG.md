@@ -36,6 +36,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- Corrected-label table inspected: 490 of 1,966 raw Bot flows are attempts after the documented Bot
+  window, the same size as the held-out Bot test set (probable explanation of Bot recall 0; to be
+  confirmed by retraining).
 - First corrected-label relabel run recorded (ADR 0013): 101,084 benign flows become attack, 99,638
   are dropped as attempted; the infiltration scan and the DDoS reverse flows account for most of
   the benign-to-attack changes.
