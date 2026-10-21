@@ -337,6 +337,40 @@ def test_rate_limiting_returns_429_with_retry_after(prepared) -> None:  # type: 
     )
 
 
+def test_trusted_proxy_count_sets_the_rate_limit_key(prepared) -> None:  # type: ignore[no-untyped-def]
+    now = [0.0]
+    settings = ServiceSettings(api_key=API_KEY, read_key=READ_KEY, trusted_proxies=1)
+    limiter = TokenBucketLimiter(60, burst=1, clock=lambda: now[0])
+    client = make_app(prepared, settings=settings, limiter=limiter).test_client()
+
+    def get(forwarded: str) -> int:
+        headers = {**READ, "X-Forwarded-For": forwarded}
+        return client.get("/v1/stats", headers=headers).status_code
+
+    # the proxy-appended (rightmost) address is the key; leftmost entries are client-controlled
+    assert get("203.0.113.1, 198.51.100.7") == 200
+    assert get("203.0.113.99, 198.51.100.7") == 429  # spoofing the left entry does not help
+    assert get("203.0.113.1, 198.51.100.8") == 200  # a different real client has its own bucket
+
+
+def test_forwarded_headers_are_ignored_without_trusted_proxies(prepared) -> None:  # type: ignore[no-untyped-def]
+    now = [0.0]
+    limiter = TokenBucketLimiter(60, burst=1, clock=lambda: now[0])
+    client = make_app(prepared, limiter=limiter).test_client()
+    first = {**READ, "X-Forwarded-For": "1.1.1.1"}
+    second = {**READ, "X-Forwarded-For": "2.2.2.2"}
+    assert client.get("/v1/stats", headers=first).status_code == 200
+    assert client.get("/v1/stats", headers=second).status_code == 429
+
+
+def test_trusted_proxies_setting_is_validated() -> None:
+    base = {"AI_IDS_API_KEY": API_KEY, "AI_IDS_READ_KEY": READ_KEY}
+    assert ServiceSettings.from_env({**base, "AI_IDS_TRUSTED_PROXIES": "2"}).trusted_proxies == 2
+    for bad in ("x", "-1", "9"):
+        with pytest.raises(SettingsError, match=r"trusted_proxies|AI_IDS_TRUSTED_PROXIES"):
+            ServiceSettings.from_env({**base, "AI_IDS_TRUSTED_PROXIES": bad})
+
+
 def test_alerts_limit_validation(client: FlaskClient) -> None:
     assert client.get("/v1/alerts?limit=abc", headers=READ).status_code == 422
     assert client.get("/v1/alerts?limit=0", headers=READ).status_code == 422

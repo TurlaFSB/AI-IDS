@@ -7,6 +7,12 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `ai-ids family`: descriptive comparison of one attack family across two datasets (which features
+  separate it from benign traffic, whether directions agree, where a saved model's scores place it).
+- `AI_IDS_TRUSTED_PROXIES`: rate limiting behind a reverse proxy keys on the proxy-appended client
+  address instead of the proxy's own.
+- Reports now include the validation false-positive rate actually achieved at the threshold and how
+  many scores are tied there (the 1% target is unreachable when scores are tied).
 - `ai-ids transfer --calibration-fraction`: calibrate on the earliest slice of the target's benign
   traffic and evaluate on later flows only, a leakage-free counterpart of the oracle point.
 - `ai-ids transfer`: score a different dataset (CSE-CIC-IDS2018 column names and labels are

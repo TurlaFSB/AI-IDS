@@ -147,6 +147,8 @@ def local_calibration(
         "flows_without_valid_timestamp_excluded": int(len(frame) - valid.size),
         "calibration_flows": int(cut),
         "calibration_benign_flows": int(benign_scores.size),
+        "achieved_calibration_fpr": float(np.mean(benign_scores > threshold)),
+        "calibration_scores_tied_at_threshold": float(np.mean(benign_scores == threshold)),
         "calibration_window": [
             str(frame[TIMESTAMP].iloc[calibration].min()),
             str(frame[TIMESTAMP].iloc[calibration].max()),

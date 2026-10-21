@@ -46,9 +46,11 @@ design, not just endpoints.
 ## Consequences
 - Strong default posture, but the controls are only as good as the deployment: TLS, network
   exposure and key rotation are the operator's responsibility (see the runbook).
-- Rate limiting is keyed by the peer address. Behind a reverse proxy every client shares the
-  proxy's address, so the proxy must enforce per-client limits, or the service must be extended to
-  trust a configured forwarded header. This is documented as a limitation, not hidden.
+- Rate limiting is keyed by the peer address by default. Behind a reverse proxy every client would
+  share the proxy's address, so `AI_IDS_TRUSTED_PROXIES` (0 to 5) makes the service trust the last
+  N `X-Forwarded-For` entries, using Werkzeug's `ProxyFix`. It is off by default because trusting
+  the header without a proxy in front lets a client pick its own bucket; the runbook states what
+  the proxy must do.
 - State is in memory and per process: alerts are lost on restart and multiple workers would each
   hold their own counters. That matches the data-minimisation goal and a single-process deployment;
   scaling out needs a shared store and a retention decision first.

@@ -215,8 +215,8 @@ report.json   metrics, operating points, per-attack recall, per-day FPR, drift, 
 
 ## Results
 
-First full run on CIC-IDS-2017 (default config at the time, seed 42, commit `5166bf2`; Random Forest and Isolation Forest only,
-the gradient-boosting detector has not been evaluated on real data yet). After cleaning there
+First full run on CIC-IDS-2017 (default config at the time, seed 42, commit `5166bf2`; Random Forest
+and Isolation Forest only; the later runs below add gradient boosting and the autoencoder). After cleaning there
 are 2,522,525 flows; the test set has 630,647 flows, of which 106,485 (16.9%) are attacks.
 Alert thresholds were calibrated for a **1% false-positive rate** on validation data.
 
@@ -495,6 +495,7 @@ tests/             unit and end-to-end tests
 
 | Document | Purpose |
 |---|---|
+| [Talk outline](docs/talk-outline.md) | Ten-minute presentation structure with hard questions |
 | [Results at a glance](docs/results-summary.md) | One-page summary of findings and what is not shown |
 | [Architecture](docs/architecture.md) | Components, data flow, target design |
 | [Threat model](docs/threat-model.md) | STRIDE analysis and mitigations |

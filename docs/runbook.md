@@ -34,10 +34,12 @@ AI_IDS_API_KEY=<printed> ai-ids replay --synthetic --rate 20     # in a second t
 ## Reverse proxy requirements
 
 - Terminate TLS 1.2+ (prefer 1.3) and forward to `127.0.0.1:8080`.
-- Enforce per-client rate limits and connection limits at the proxy. The service limits by peer
-  address, and behind a proxy that address is the proxy's, so all clients share one bucket. Either
-  leave the proxy's own limits as the real control, or raise `AI_IDS_RATE_LIMIT_PER_MINUTE` to
-  suit the aggregate load.
+- Set `AI_IDS_TRUSTED_PROXIES` to the number of proxies you operate in front of the service (0 to
+  5; default 0). The service then keys its rate limit on the address your outermost proxy
+  appended to `X-Forwarded-For` and ignores anything a client put further left, so one client
+  cannot choose its own bucket. Your proxy must append the real peer address and must not pass a
+  client-supplied value through as the last entry. Leave it at 0 when nothing sits in front: the
+  header is then ignored entirely. Enforce connection limits at the proxy as well.
 - Do not expose `/metrics` publicly; it needs the read key but should also be network-restricted.
 
 ## Health and monitoring

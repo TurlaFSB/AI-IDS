@@ -30,6 +30,7 @@ from prometheus_client import (
     generate_latest,
 )
 from werkzeug.exceptions import HTTPException
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from ai_ids.labels import techniques_for_category
 from ai_ids.models.detectors import BaseDetector
@@ -102,6 +103,12 @@ def create_app(
 
     app = Flask(__name__, static_folder=None)
     app.config["MAX_CONTENT_LENGTH"] = settings.max_body_bytes
+    if settings.trusted_proxies:
+        # Only the last N entries of X-Forwarded-For, appended by proxies we operate, are trusted;
+        # anything a client puts further left is ignored, so it cannot choose its rate-limit key.
+        app.wsgi_app = ProxyFix(  # type: ignore[method-assign]
+            app.wsgi_app, x_for=settings.trusted_proxies
+        )
     app.json.sort_keys = False  # type: ignore[attr-defined]
     rate_limiter = limiter or TokenBucketLimiter(settings.rate_limit_per_minute)
     service_state = state or ServiceState(settings.alert_buffer)

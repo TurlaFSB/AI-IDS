@@ -91,4 +91,5 @@ Every response carries an `X-Request-ID` (a well-formed client value of 8-64 cha
 | `AI_IDS_RATE_LIMIT_PER_MINUTE` | 120 | per-client-address rate limit |
 | `AI_IDS_ALERT_BUFFER` | 500 | in-memory alerts kept |
 | `AI_IDS_BEHIND_TLS` | unset | send HSTS when `1`, `true` or `yes` |
+| `AI_IDS_TRUSTED_PROXIES` | 0 | proxies in front of the service (0 to 5); sets the rate-limit key from `X-Forwarded-For` |
 | `AI_IDS_MODEL_HMAC_KEY` | unset | verify the model manifest signature |

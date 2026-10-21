@@ -18,9 +18,10 @@ from ai_ids.data.integrity import dataset_checksums
 from ai_ids.data.loader import TIMESTAMP, clean_flows, feature_columns, normalize_columns
 from ai_ids.data.split import chronological_split
 from ai_ids.data.synthetic import generate_flows
+from ai_ids.evaluation.familystudy import run_family_study
 from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.evaluation.seeds import run_seed_study
-from ai_ids.evaluation.transfer import run_transfer
+from ai_ids.evaluation.transfer import prepare_target, run_transfer
 from ai_ids.logging_config import configure_logging
 from ai_ids.pipeline import prepare_data, run_analysis, run_training
 from ai_ids.registry import load_detector
@@ -87,6 +88,17 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="impute features the target lacks instead of failing (weakens the comparison)",
     )
+
+    family = sub.add_parser(
+        "family", help="compare one attack family across two datasets (descriptive, no training)"
+    )
+    family.add_argument("--source-data", type=Path, required=True, help="e.g. CICIDS2017")
+    family.add_argument("--target-data", type=Path, required=True, help="e.g. CSE-CIC-IDS2018")
+    family.add_argument("--category", default="botnet", help="attack category to compare")
+    family.add_argument("--out", type=Path, required=True, help="output JSON file")
+    family.add_argument("--model-dir", type=Path, help="optional saved detector for score shift")
+    family.add_argument("--config", type=Path, help="YAML experiment config used for training")
+    family.add_argument("--max-per-class", type=int, default=50_000)
 
     serve_cmd = sub.add_parser("serve", help="run the scoring service and dashboard")
     serve_cmd.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
@@ -294,6 +306,41 @@ def main(argv: Sequence[str] | None = None) -> int:
                     f"recall={point['recall']:.4f} fpr={point['false_positive_rate']:.4f} "
                     f"precision={point['precision']:.4f}"
                 )
+        return 0
+
+    if args.command == "family":
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        key = os.environ.get(HMAC_KEY_ENV)
+        reference = (
+            load_detector(args.model_dir, hmac_key=key.encode() if key else None)
+            if args.model_dir
+            else None
+        )
+        source, _, _ = prepare_target(
+            args.source_data,
+            pm_fix_before_hour=config.timestamp_pm_fix_before_hour,
+            dayfirst=config.timestamp_dayfirst,
+        )
+        target, _, _ = prepare_target(args.target_data, dayfirst=config.timestamp_dayfirst)
+        study = run_family_study(
+            source,
+            target,
+            args.category,
+            detector=reference,
+            max_per_class=args.max_per_class,
+            seed=config.seed,
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(study, indent=2, default=str) + "\n")
+        comparison = study["comparison"]
+        print(
+            f"{args.category}: source flows {study['source_flows']['family']}, "
+            f"target flows {study['target_flows']['family']}, "
+            f"spearman of feature effects {comparison.get('spearman_of_effects')}"
+        )
+        for row in comparison.get("strongest", [])[:8]:
+            auc_pair = f"auc source {row['auc_source']:.3f} target {row['auc_target']:.3f}"
+            print(f"  {row['feature']}: {auc_pair}")
         return 0
 
     if args.command == "checksum":

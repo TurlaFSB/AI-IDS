@@ -184,6 +184,13 @@ def evaluate_detector(
     per_attack = per_class_recall(split.test[LABEL], y_pred, y_true)
     report: dict[str, Any] = {
         "target_fpr": config.target_fpr,
+        # Tied scores can make the target unreachable (the threshold sits on a plateau), so say
+        # what the validation false-positive rate actually is at the threshold in use.
+        "calibration": {
+            "achieved_validation_fpr": float(np.mean(val_scores > threshold)),
+            "validation_scores_tied_at_threshold": float(np.mean(val_scores == threshold)),
+            "validation_benign_flows": len(val_scores),
+        },
         "test": binary_report(y_true, test_scores, threshold),
         "operating_points": operating_points,
         "per_attack_recall": per_attack,

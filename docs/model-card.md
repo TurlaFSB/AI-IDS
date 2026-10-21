@@ -324,3 +324,9 @@ console output and `report.json` of the run, not recomputed.
 
 Retraining must beat the incumbent on held-out data before promotion (planned champion/challenger
 workflow). Re-evaluate and update this card with every released model.
+
+## Calibration diagnostics
+Each report's `calibration` section gives the validation false-positive rate actually achieved at
+the threshold and the share of benign validation scores exactly equal to it. When scores are tied
+(gradient boosting on 2018 data was one case) the 1% target cannot be hit exactly and the realised
+rate is lower; the report states what happened rather than the target.

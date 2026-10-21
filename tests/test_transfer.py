@@ -186,3 +186,33 @@ def test_implausible_timestamps_are_excluded_from_local_calibration(
     study = report["local_calibration_study"]
     assert study["flows_without_valid_timestamp_excluded"] == missing
     assert pd.Timestamp(study["calibration_window"][0]).year >= 2000
+
+
+@pytest.mark.filterwarnings("ignore::sklearn.exceptions.ConvergenceWarning")
+def test_family_cli_end_to_end(
+    synthetic_csv: Path, target_csv: Path, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text("detectors: [random_forest]\nrandom_forest: {n_estimators: 20}\n")
+    out = tmp_path / "run"
+    train = ["train", "--data", str(synthetic_csv), "--out", str(out), "--config", str(cfg)]
+    assert main(train) == 0
+    result = tmp_path / "family.json"
+    code = main(
+        [
+            "family",
+            "--source-data", str(synthetic_csv),
+            "--target-data", str(target_csv),
+            "--category", "botnet",
+            "--model-dir", str(out / "random_forest"),
+            "--out", str(result),
+            "--config", str(cfg),
+            "--max-per-class", "500",
+        ]
+    )  # fmt: skip
+    assert code == 0
+    report = json.loads(result.read_text())
+    assert report["category"] == "botnet"
+    assert set(report["model_scores"]) == {"source", "target"}
+    assert report["comparison"]["features_compared"] > 0
+    assert "botnet" in capsys.readouterr().out

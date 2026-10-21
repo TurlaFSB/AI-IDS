@@ -10,6 +10,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 
 MIN_KEY_LENGTH = 16
+MAX_TRUSTED_PROXIES = 5
 DEFAULT_CONTEXT_FIELDS = ("flow_id", "source_ip", "destination_ip", "source_port", "timestamp")
 
 
@@ -30,6 +31,16 @@ def _positive_int(env: Mapping[str, str], name: str, default: int) -> int:
     return value
 
 
+def _proxy_count(env: Mapping[str, str]) -> int:
+    raw = env.get("AI_IDS_TRUSTED_PROXIES")
+    if raw is None:
+        return 0
+    try:
+        return int(raw)
+    except ValueError:
+        raise SettingsError("AI_IDS_TRUSTED_PROXIES must be an integer") from None
+
+
 @dataclass(frozen=True)
 class ServiceSettings:
     api_key: str
@@ -40,6 +51,7 @@ class ServiceSettings:
     alert_buffer: int = 500
     context_fields: tuple[str, ...] = DEFAULT_CONTEXT_FIELDS
     behind_tls: bool = False
+    trusted_proxies: int = 0
 
     def __post_init__(self) -> None:
         for name, key in (("API key", self.api_key), ("read key", self.read_key)):
@@ -52,6 +64,8 @@ class ServiceSettings:
                 raise SettingsError(f"{name} must be positive")
         if self.alert_buffer < 1:
             raise SettingsError("alert_buffer must be positive")
+        if not 0 <= self.trusted_proxies <= MAX_TRUSTED_PROXIES:
+            raise SettingsError(f"trusted_proxies must be between 0 and {MAX_TRUSTED_PROXIES}")
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ServiceSettings:
@@ -66,4 +80,5 @@ class ServiceSettings:
             rate_limit_per_minute=_positive_int(source, "AI_IDS_RATE_LIMIT_PER_MINUTE", 120),
             alert_buffer=_positive_int(source, "AI_IDS_ALERT_BUFFER", 500),
             behind_tls=source.get("AI_IDS_BEHIND_TLS", "").lower() in {"1", "true", "yes"},
+            trusted_proxies=_proxy_count(source),
         )
