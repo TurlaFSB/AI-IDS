@@ -6,6 +6,11 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
+### Changed
+- README restructured for readers: findings table up front, dataset setup for CICIDS2017 and
+  CSE-CIC-IDS2018 (download, layout, truncation warning), full command reference, reproduction and
+  responsible-use sections. The long results record moved unchanged to docs/results-full.md.
+
 ### Added
 - Corrected CICIDS2017 labels (ADR 0013): `ai_ids.data.relabel` re-implements the published attack
   timelines as ordered rules; `ai-ids relabel` reports old-versus-new labels; `corrected_labels` in
@@ -14,7 +19,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - The loader flags CSV files whose row count equals the spreadsheet limit (1,048,575 data rows) as
   probably truncated, in the log and in the cleaning report.
 - `ai-ids adaptive`: per-flow best-of-grid evasion adversary (timing and forward padding) with a
-  benign control (ADR 0012). No results recorded yet.
+  benign control (ADR 0012); results are in docs/results-full.md.
 - `ai-ids family`: descriptive comparison of one attack family across two datasets (which features
   separate it from benign traffic, whether directions agree, where a saved model's scores place it).
 - `AI_IDS_TRUSTED_PROXIES`: rate limiting behind a reverse proxy keys on the proxy-appended client
