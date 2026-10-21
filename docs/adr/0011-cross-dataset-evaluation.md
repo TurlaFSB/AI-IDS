@@ -40,7 +40,9 @@ under abbreviated column names, so the same model can score it without retrainin
 The column aliases matched all 78 model features on three real 2018 day files. A threshold fixed on
 2017 failed to transfer for both models tested (recall below 0.09); the oracle point separated the
 causes: gradient boosting still ranked well and would recover to 0.83 recall, the Random Forest did
-not (0.127). Numbers and caveats are in the README.
+not (0.127). The local-calibration study showed the oracle result is reachable without target
+labels on the evaluated flows: a threshold from the earliest 150,000 benign flows reproduced the
+oracle threshold exactly (recall 0.830 on later flows). Numbers and caveats are in the README.
 
 ## Addendum: local calibration
 The oracle point uses all target benign labels, including those of the flows it is evaluated on, so

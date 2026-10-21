@@ -22,6 +22,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- Local calibration on the earliest benign slice of CSE-CIC-IDS2018 restores gradient-boosting
+  recall from 0.049 to 0.830 on later flows (0.26% false-positive rate), matching the oracle.
 - Per-category cross-dataset results recorded: gradient boosting ranks 2018 Bot almost perfectly
   (recall 0.956 with a target-calibrated threshold) but catches none with the stored 2017 threshold.
 - First cross-dataset result (CICIDS2017 to CSE-CIC-IDS2018): a fixed 2017 threshold does not

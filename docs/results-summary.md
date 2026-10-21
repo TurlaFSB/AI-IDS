@@ -53,9 +53,12 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    (1,000,000-flow sample, 7.7% attacks) the evasion-aware Random Forest keeps recall 0.085 and
    gradient boosting 0.049 at false-positive rates of 0.05% and 0.01%. Gradient boosting still
    ranks well (PR-AUC 0.898) and would reach recall 0.83 at 0.26% false positives with a threshold
-   set on the target's benign labels (an upper bound, not deployable); the Random Forest ranks
+   set on the target's benign labels; the Random Forest ranks
    poorly (PR-AUC 0.506; recall 0.127 even with that threshold). DoS reaches only about 0.48 for
-   both models even then. Two models, one seed, an attack mix that is 74% Bot.
+   both models even then. The recalibration is deployable: a threshold set from the earliest
+   150,000 benign flows of the target (before any attack) gives gradient boosting recall 0.830 at a
+   0.26% false-positive rate on the later flows, matching the oracle, if an operator can get a
+   clean benign window. Two models, one seed, an attack mix that is 74% Bot.
 
 ## What is not shown
 - Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.

@@ -405,8 +405,20 @@ attacks 118 in total). All 78 model features matched after column aliasing.
 
 Adding `--calibration-fraction 0.15` also reports a deployable counterpart: the threshold is set
 from benign flows in the earliest 15% of the target by time and every metric is computed on the
-later flows only (the stored threshold is reported on the same flows). No numbers for it are
-recorded yet.
+later flows only (the stored threshold is reported on the same flows).
+
+**Local calibration result (gradient boosting).** The calibration slice was the earliest 150,000
+flows of the sample (2018-02-15 01:00 to 08:51, all benign, before any attack); the 850,000 later
+flows hold all 76,822 attacks. With a threshold set on that slice at the 1% target, recall is
+**0.830** at a false-positive rate of 0.26% and precision 0.970, against 0.049, 0.01% and 0.978
+for the stored 2017 threshold on the same flows. The local threshold (0.1301) equals the oracle
+threshold exactly, so a benign-only window of this size recovers everything the oracle did. The
+realised false-positive rate is 0.26%, not the 1% target, because gradient-boosting scores are
+heavily tied at that value. Caveats: this assumes an operator can obtain a clean benign window from
+the new network, the window here is the quiet start of one day (a favourable case), it is one
+model and one sample, and the Random Forest was not tried (its oracle recall was only 0.127).
+Nine flows in the 2018 files have corrupted dates (1970); they are set to missing and excluded
+(`timestamps_set_missing_as_implausible` in the report).
 
 The "oracle" point chooses a threshold from the target's own benign labels at the training false-
 positive target, so it is an upper bound on what recalibration could recover, not a deployable
