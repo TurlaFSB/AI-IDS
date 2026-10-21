@@ -397,13 +397,35 @@ each, whether directions agree, where a saved model's scores place it (on held-o
 only), and which categories a multi-class model assigns it. It is descriptive; differences may come
 from the attack tool, the network, the capture or label definitions. Results are being recorded.
 
-### Adaptive evasion (tooling ready, results pending)
+### Adaptive evasion in feature space
 
-`ai-ids adaptive --data ... --model-dir ... --out adaptive.json` gives a per-flow adversary a grid of
-slowdowns and forward padding, scores every combination and keeps each flow's lowest score
-(ADR 0012). It reports clean and adaptive recall, a frontier over how much the adversary may use,
-and a benign control. It is still a feature-space test, not a packet-level one, and no numbers for
-it have been produced yet.
+`ai-ids adaptive` gives a per-flow adversary a grid of slowdown factors (1, 2, 5, 10, 30) and
+forward-padding amounts (0, 32, 128, 512, 1,024, 1,460 bytes), scores all 30 combinations with the
+saved model and keeps each flow's lowest score (ADR 0012). It ran on a sample of up to 20,000 attack
+and 20,000 benign flows from the CICIDS2017 test split (seed 42, models from
+`configs/robustness.yaml`, tool at commit `19a527b`). The benign control is the share of benign flows
+flagged under *any* combination; a large rise over the clean false-positive rate would indicate a
+"perturbed means attack" shortcut.
+
+| Detector | Clean recall | Adaptive recall | Benign flagged under any combination (clean rate) |
+|---|---|---|---|
+| Random Forest | 0.990 | **0.518** | 0.128 (0.084) |
+| Random Forest, evasion-aware | 0.990 | **0.895** | 0.099 (0.083) |
+| Gradient boosting | 0.865 | 0.483 | 0.041 (0.002) |
+| Gradient boosting, evasion-aware | 0.987 | 0.878 | 0.077 (0.073) |
+
+Reading it:
+- A per-flow adversary cuts the plain Random Forest from 0.99 to 0.52. Evasion-aware training holds
+  the adaptive recall at 0.90, so most of the defence survives an adaptive search, but not all of it:
+  roughly ten points are still lost.
+- The benign control does not show the old shortcut: the evasion-aware Random Forest flags 9.9% of
+  benign flows under its worst combination against 8.3% clean (a rise of 1.6 points; the plain model
+  rises by 4.4).
+- Limits that apply to every number here: derived features, not packets; only timing and forward
+  packet size are reshaped; the transformations assume the attack still works afterwards; the grid
+  is coarse, so a larger budget or other features could evade more; one seed; sampled flows (clean
+  recall differs slightly from the full test split for that reason). The recall frontier and
+  per-family results are in the JSON output and are not summarised here yet.
 
 ### Cross-dataset transfer: CICIDS2017 to CSE-CIC-IDS2018
 
@@ -439,6 +461,14 @@ Nine flows in the 2018 files have corrupted dates (1970); they are set to missin
 The "oracle" point chooses a threshold from the target's own benign labels at the training false-
 positive target, so it is an upper bound on what recalibration could recover, not a deployable
 setting.
+
+**Data caveat for everything in this section.** Each of the three 2018 day files holds exactly
+1,048,575 rows, which is Excel's row limit minus the header, so they were almost certainly truncated
+by an Excel export and contain only the first part of each day. Attack counts for the DoS and web
+attack classes are therefore partial (the 118 web-attack flows are far fewer than that class should
+have; we did not verify the original counts), and the attack mix here is not the dataset's full mix.
+The Bot day looks complete enough to matter (its Bot flows are numerous), but that is not verified
+either. Treat the numbers as a cross-dataset smoke test on truncated files, not a full benchmark.
 
 What this shows and does not show:
 - **A threshold fixed on 2017 does not carry over.** Both models almost never alert on 2018

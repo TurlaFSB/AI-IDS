@@ -1,6 +1,6 @@
 # 0012. Adaptive evasion in feature space
 
-Status: Accepted (2026-10-21); no results yet
+Status: Accepted (2026-10-21); first results recorded (README)
 
 ## Context
 The evasion results so far apply one fixed perturbation to every attack flow ("pad by 64 bytes").
@@ -26,3 +26,9 @@ split are verified against the model exactly as `analyze` does.
 - The adversary queries the model score freely and exhaustively. That is a worst case for the
   defender on access and a weak one on search (no gradients).
 - A packet-level check remains future work and needs real captures plus the original extractor.
+
+## Outcome (first run)
+Adaptive recall: Random Forest 0.99 to 0.52; evasion-aware Random Forest 0.99 to 0.90; gradient
+boosting 0.87 to 0.48; evasion-aware gradient boosting 0.99 to 0.88. The benign control did not show a
+shortcut. Evasion-aware training therefore survives most of an adaptive search in feature space but
+not all of it; the recall frontier and per-family results are in the report JSON.

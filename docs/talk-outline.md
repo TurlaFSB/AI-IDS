@@ -24,7 +24,9 @@ of our own fixes failed its control and is shown.
    0.99 on known attacks; botnet 0.00. In-distribution recall mostly measures recognising the
    benchmark's tools.
 4. **Evasion in feature space (1:15).** Padding packets cut Random Forest recall from 0.99 to 0.51.
-   State the limit now: feature-space, one seed, modelled perturbations only.
+   State the limit now: feature-space, one seed, modelled perturbations only. (Held for slide 5:
+   against a per-flow adaptive adversary the plain Random Forest falls to 0.52, the evasion-aware one
+   to 0.90.)
 5. **The centrepiece: the defence that cheated (2:15).** Train on padded attack copies: recall
    under padding rises to 1.000. The benign control (pad benign flows the same way) shows 24%,
    50% and 70% of padded benign flows flagged: the model learned "padded means attack". Redesign:

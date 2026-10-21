@@ -60,10 +60,18 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    0.26% false-positive rate on the later flows, matching the oracle, if an operator can get a
    clean benign window. Two models, one seed, an attack mix that is 74% Bot.
 
+7. **A per-flow adaptive adversary still costs the evasion-aware model about ten points.** Allowed
+   to pick, per flow, any of 30 slowdown and forward-padding combinations, an attacker cuts the plain
+   Random Forest from 0.99 to 0.52 recall and the evasion-aware one from 0.99 to 0.90; the benign
+   control shows no "perturbed means attack" shortcut (9.9% of benign flows flagged under the worst
+   combination against 8.3% clean). Feature-space only, one seed, a 20,000-flow sample per class.
+
 ## What is not shown
 - Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.
-- Packet-level or adaptive-adversary evasion: the evasion work is feature-space, single-seed and
-  covers only the perturbation families we modelled.
+- Packet-level evasion, or an adversary with gradients or a larger budget: the evasion work is
+  feature-space, single-seed and covers only the modelled reshaping.
+- A clean cross-dataset benchmark: the three CSE-CIC-IDS2018 files used are truncated at Excel's row
+  limit (1,048,575 rows each), so the 2018 attack mix is partial.
 - Corrected labels: CICIDS2017's label problems are documented, and no verified corrected-label
   source has been applied.
 - Seed spread for the evasion results or for fusion.

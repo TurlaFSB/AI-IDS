@@ -30,6 +30,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- Adaptive evasion recorded: a per-flow adversary lowers recall from 0.99 to 0.52 (Random Forest) and
+  0.90 (evasion-aware Random Forest); no benign shortcut (ADR 0012).
+- Data-quality finding: the three CSE-CIC-IDS2018 day files used are truncated at Excel's row limit,
+  so the cross-dataset results are a smoke test on partial files.
 - Local calibration on the earliest benign slice of CSE-CIC-IDS2018 restores gradient-boosting
   recall from 0.049 to 0.830 on later flows (0.26% false-positive rate), matching the oracle.
 - Per-category cross-dataset results recorded: gradient boosting ranks 2018 Bot almost perfectly

@@ -38,6 +38,15 @@ IP addresses and timestamps in flow records can identify individuals (GDPR Recit
 - **Timestamps:** CIC-IDS-2017 dates are day-first (`4/7/2017` is 4 July 2017); the loader parses
   them accordingly (`timestamp_dayfirst`).
 
+## CSE-CIC-IDS2018 files used for the transfer test
+- Each of the three day files has exactly 1,048,575 rows (Excel's limit minus the header), so they
+  were almost certainly truncated at export; counts of some attack classes are partial.
+- `rst_flag_count` and `ece_flag_count` are identical in all but one of 1,048,575 rows of the Bot day,
+  so they carry the same information in these files.
+- A handful of flows (9 across the three files) are dated 1970; they are set to missing and excluded
+  from time-based steps.
+- The files have no source or destination addresses.
+
 ## Scoring service
 
 - Alerts (score, category, ATT&CK IDs and an allow-list of context fields that may include
