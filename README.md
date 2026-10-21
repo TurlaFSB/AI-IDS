@@ -283,7 +283,8 @@ Recall by attack category on the test split:
 - **The unsupervised detectors do not work well enough here.** The autoencoder ranks better than
   the Isolation Forest (PR-AUC 0.46 versus 0.35) but at 15% recall and a 7.4% false-positive rate
   it is not usable; it detects some DoS (0.24) and port scan (0.19) and little else. These are
-  negative results and stay in the write-up. No detector detects the Bot family.
+  negative results and stay in the write-up. No detector detects the Bot family at the calibrated threshold (it does rank above most benign
+  traffic: held-out AUC 0.86 and 0.90).
 - **Packet-size shaping defeats the Random Forest in feature space.** At the calibrated threshold,
   recall falls from 0.990 to 0.513 when every packet carries 64 extra bytes (0.531 at 256 B, 0.508 at
   1,024 B). Slowing flows down costs little (0.979, 0.965, 0.950 at 2x, 5x, 10x). Per family, at 64
@@ -395,7 +396,28 @@ console output and `report.json` of the run, not recomputed.
 one family across two datasets without training: which features separate it from benign traffic in
 each, whether directions agree, where a saved model's scores place it (on held-out source flows
 only), and which categories a multi-class model assigns it. It is descriptive; differences may come
-from the attack tool, the network, the capture or label definitions. Results are being recorded.
+from the attack tool, the network, the capture or label definitions.
+
+**Bot, CICIDS2017 against the 2018 files** (models from `configs/robustness.yaml`; the 2018 files are
+truncated, see the data caveat below):
+- The datasets disagree on what separates Bot from benign traffic: rank correlation of the 78
+  per-feature effects is 0.32, and of the five features in both top-15 lists four point the same
+  way. `fwd_packet_length_mean` flips direction (AUC 0.38 on 2017, 0.81 on 2018, so 2017 Bot has
+  smaller forward packets than benign traffic and 2018 Bot larger ones). `destination_port`
+  separates it similarly in both (0.82 and 0.81).
+- `rst_flag_count` (AUC 0.93 on 2018, about 0.50 on 2017) and `ece_flag_count` are the same column
+  in the 2018 files (equal in all but 1 of 1,048,575 rows of the Bot day), so they are one signal,
+  not two.
+- Scored on held-out source flows only: Bot ranks above benign traffic on 2017 too (AUC 0.86 for
+  the Random Forest, 0.90 for gradient boosting; 490 test flows), but none of it clears the
+  calibrated threshold. On the 2018 Bot flows the AUCs are 0.92 and 0.99, and none clear the
+  stored threshold. The gradient-boosting scores for 2018 Bot lie in a narrow band (about 0.16 to
+  0.31) above benign traffic and far below the 0.999 threshold.
+- The Random Forest assigns **100%** of the 2018 Bot flows to "benign". The idea that 2018 Bot
+  resembles other 2017 attack families is therefore not supported. Why gradient boosting ranks it so
+  well, and whether the signal reflects the attack or a capture artefact, is not established.
+- Correction to earlier wording: "no detector detects Bot" means recall 0 at the 1% operating point,
+  not that Bot is invisible to the models.
 
 ### Adaptive evasion in feature space
 
@@ -421,11 +443,19 @@ Reading it:
 - The benign control does not show the old shortcut: the evasion-aware Random Forest flags 9.9% of
   benign flows under its worst combination against 8.3% clean (a rise of 1.6 points; the plain model
   rises by 4.4).
+- The aggregate hides the family picture. Evasion-aware Random Forest, clean to adaptive recall:
+  web attacks 0.97 to **0.02** (about 90 of 93 sampled flows to 2), DoS 0.99 to 0.80, brute force
+  0.99 to 0.94, port scan 1.00 to 0.99, DDoS 1.00 to 1.00, Bot 0 to 0. The overall 0.895 is dominated
+  by the two large families that barely move. The web-attack class is small, so that figure is noisy,
+  but a per-flow adversary evades nearly all of it.
+- Frontier (evasion-aware Random Forest, recall against what the adversary may use): slowing flows
+  up to 30x with no padding gives 0.959; adding at most 32 bytes of forward padding gives 0.913;
+  the full budget (30x and 1,460 bytes) gives 0.895. Slowing up to 5x and padding up to 128 bytes
+  costs only 1.5 points (0.974).
 - Limits that apply to every number here: derived features, not packets; only timing and forward
   packet size are reshaped; the transformations assume the attack still works afterwards; the grid
   is coarse, so a larger budget or other features could evade more; one seed; sampled flows (clean
-  recall differs slightly from the full test split for that reason). The recall frontier and
-  per-family results are in the JSON output and are not summarised here yet.
+  recall differs slightly from the full test split for that reason). 
 
 ### Cross-dataset transfer: CICIDS2017 to CSE-CIC-IDS2018
 

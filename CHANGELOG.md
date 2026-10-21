@@ -30,6 +30,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- Bot-family comparison (2017 vs 2018) recorded: held-out ranking AUC 0.86/0.90, the Random Forest
+  labels all 2018 Bot benign, the two datasets disagree on separating features; "no detector
+  detects Bot" corrected to "recall 0 at the calibrated threshold".
+- Adaptive evasion per-family and frontier recorded: web attacks 0.97 to 0.02, DoS 0.99 to 0.80.
 - Adaptive evasion recorded: a per-flow adversary lowers recall from 0.99 to 0.52 (Random Forest) and
   0.90 (evasion-aware Random Forest); no benign shortcut (ADR 0012).
 - Data-quality finding: the three CSE-CIC-IDS2018 day files used are truncated at Excel's row limit,

@@ -45,10 +45,14 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    0.96 to 0.99 with no increase in benign flows flagged and no loss on clean data. For gradient
    boosting it costs the clean operating point (false-positive rate 0.26% to 7.0%), and 99.8% of
    that extra cost sits on the same two scan-like hosts.
-5. **The Bot family is missed by every detector on 2017** (recall 0.00 on 490 test flows). On 2018
-   Bot (56,578 flows) gradient boosting ranks it almost perfectly (recall 0.956 with a threshold
-   set on the target's benign traffic) while its stored 2017 threshold catches none; the Random
-   Forest cannot separate it (0.004). Why 2018 Bot differs is not established.
+5. **Bot has recall 0 at the calibrated threshold in every detector on 2017** (490 test flows), yet
+   it ranks above most benign traffic (held-out AUC 0.86 Random Forest, 0.90 gradient boosting). On
+   2018 Bot (56,578 flows in the sample) gradient boosting ranks it almost perfectly (recall 0.956
+   with a threshold set on the target's benign traffic) while its stored 2017 threshold catches
+   none; the Random Forest labels 100% of it benign. The two datasets disagree on what separates
+   Bot (feature-effect rank correlation 0.32; forward packet size flips direction), and the strongest
+   2018 feature is a flag column duplicated in the files. Why gradient boosting ranks 2018 Bot well
+   is not established.
 6. **A threshold fixed on 2017 does not transfer to 2018.** On three CSE-CIC-IDS2018 days
    (1,000,000-flow sample, 7.7% attacks) the evasion-aware Random Forest keeps recall 0.085 and
    gradient boosting 0.049 at false-positive rates of 0.05% and 0.01%. Gradient boosting still
@@ -64,7 +68,10 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    to pick, per flow, any of 30 slowdown and forward-padding combinations, an attacker cuts the plain
    Random Forest from 0.99 to 0.52 recall and the evasion-aware one from 0.99 to 0.90; the benign
    control shows no "perturbed means attack" shortcut (9.9% of benign flows flagged under the worst
-   combination against 8.3% clean). Feature-space only, one seed, a 20,000-flow sample per class.
+   combination against 8.3% clean). The aggregate hides the family picture: web attacks fall from
+   0.97 to 0.02 recall (about 90 of 93 sampled flows to 2) and DoS from 0.99 to 0.80, while DDoS
+   and port scan barely move. Slowing flows up to 30x alone costs 3 points; at most 32 bytes of
+   padding on top costs another 4.5. Feature-space only, one seed, a 20,000-flow sample per class.
 
 ## What is not shown
 - Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.

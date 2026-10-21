@@ -32,3 +32,9 @@ Adaptive recall: Random Forest 0.99 to 0.52; evasion-aware Random Forest 0.99 to
 boosting 0.87 to 0.48; evasion-aware gradient boosting 0.99 to 0.88. The benign control did not show a
 shortcut. Evasion-aware training therefore survives most of an adaptive search in feature space but
 not all of it; the recall frontier and per-family results are in the report JSON.
+
+Per-family result (evasion-aware Random Forest, clean to adaptive recall): web attacks 0.97 to 0.02,
+DoS 0.99 to 0.80, brute force 0.99 to 0.94, port scan and DDoS nearly unchanged. The aggregate
+(0.895) is dominated by the large families and hides the web-attack collapse (a small class, so
+noisy). Slowing up to 30x alone costs about 3 points; adding at most 32 bytes of padding costs about
+4.5 more.

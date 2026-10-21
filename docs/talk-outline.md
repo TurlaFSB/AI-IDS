@@ -44,8 +44,11 @@ of our own fixes failed its control and is shown.
    rank. Caveats on the slide: assumes a clean benign window, one model, one sample, 74% of the
    attacks are Bot, and the 2018 files are truncated at Excel's row limit (1,048,575 rows each).
 7. **Where it still fails (0:45).** DoS reaches only about 0.48 on 2018 for both models whatever
-   the threshold. Bot is missed on 2017 by every detector yet ranked almost perfectly on 2018
-   (recall 0.956 with the local threshold); we do not yet know why (Bot study: see below).
+   the threshold. Bot has recall 0 at the threshold on 2017 yet ranks above most benign traffic
+   (AUC 0.86 to 0.90); on 2018 gradient boosting ranks it almost perfectly (recall 0.956 with the
+   local threshold) while the Random Forest calls all of it benign. The two datasets disagree on what
+   separates Bot, so the 0.956 is not evidence of general Bot detection. The aggregate adaptive
+   figure hides web attacks falling from 0.97 to 0.02 recall.
 8. **What we built so it is checkable (0:45).** Hash-locked dependencies, SHA-pinned CI, signed and
    digest-checked model artifacts, a scoring service with a dashboard (ASVS L2 self-assessment,
    not an independent one), 170+ tests. One screenshot of the dashboard, labelled synthetic data.
@@ -75,4 +78,4 @@ method; threshold tie plateau (why the 1% target gave 0.26%); the replay demo.
 
 ## Before presenting
 Re-run the numbers from a clean checkout and confirm each figure against its report file. The
-Bot study (`ai-ids family`) is the one pending result for slide 7.
+The Bot study is recorded; confirm its numbers against `family_bot_rf.json` and `family_bot_hgb.json`.

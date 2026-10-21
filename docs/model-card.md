@@ -127,7 +127,9 @@ view of attack connections. With the top 1, 2 and 3 hosts excluded the false-pos
 3.02%, 0.144% and 0.099% (a sensitivity analysis, not a performance claim). A detector that flags
 these flows is penalised by the labels; one that ignores them is flattered.
 
-Bot (490 test flows) is detected by none of the four detectors at the 1% operating point.
+Bot (490 test flows) is detected by none of the four detectors at the 1% operating point. It still
+ranks above most benign traffic on held-out flows (AUC 0.86 Random Forest, 0.90 gradient boosting), so
+the miss is at the threshold, not a complete lack of signal (README, family comparison).
 
 Random Forest scores take only about 200 distinct values (share of trees voting "attack"), which
 makes low-FPR operating points degenerate (see ADR 0005).
