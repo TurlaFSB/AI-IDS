@@ -45,14 +45,17 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    0.96 to 0.99 with no increase in benign flows flagged and no loss on clean data. For gradient
    boosting it costs the clean operating point (false-positive rate 0.26% to 7.0%), and 99.8% of
    that extra cost sits on the same two scan-like hosts.
-5. **The Bot family is missed by every detector** (recall 0.00 on 490 test flows).
+5. **The Bot family is missed by every detector on 2017** (recall 0.00 on 490 test flows). On 2018
+   Bot (56,578 flows) gradient boosting ranks it almost perfectly (recall 0.956 with a threshold
+   set on the target's benign traffic) while its stored 2017 threshold catches none; the Random
+   Forest cannot separate it (0.004). Why 2018 Bot differs is not established.
 6. **A threshold fixed on 2017 does not transfer to 2018.** On three CSE-CIC-IDS2018 days
    (1,000,000-flow sample, 7.7% attacks) the evasion-aware Random Forest keeps recall 0.085 and
    gradient boosting 0.049 at false-positive rates of 0.05% and 0.01%. Gradient boosting still
    ranks well (PR-AUC 0.898) and would reach recall 0.83 at 0.26% false positives with a threshold
    set on the target's benign labels (an upper bound, not deployable); the Random Forest ranks
-   poorly (PR-AUC 0.506; recall 0.127 even with that threshold). Two models, one seed, an
-   attack mix that is 74% Bot; no per-category breakdown yet.
+   poorly (PR-AUC 0.506; recall 0.127 even with that threshold). DoS reaches only about 0.48 for
+   both models even then. Two models, one seed, an attack mix that is 74% Bot.
 
 ## What is not shown
 - Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.

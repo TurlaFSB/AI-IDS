@@ -416,17 +416,28 @@ What this shows and does not show:
   attacks at a 0.26% false-positive rate; its stored threshold is simply wrong for the new
   scores. The Random Forest ranks poorly (PR-AUC 0.506) and recalibration barely helps (recall
   0.127), so its problem is the ranking itself.
-- **The attack mix is dominated by Bot (74% of attacks), and the 2017 models scored zero on 2017
-  Bot.** Since the oracle recall of 0.83 exceeds the 26% of attacks that are not Bot, gradient
-  boosting must be catching most 2018 Bot flows (at least about 77% of them, by arithmetic). Whether
-  2018 Bot traffic simply differs from 2017 Bot traffic, and whether this is an easier family, is
-  not established here.
+- **By category the picture is sharper** (recall; support in brackets):
+
+  | Category | GB stored | GB oracle | RF-aug stored | RF-aug oracle |
+  |---|---|---|---|---|
+  | Botnet (56,578) | 0.000 | **0.956** | 0.000 | 0.004 |
+  | DoS (20,126) | 0.185 | 0.478 | 0.322 | 0.472 |
+  | Web attacks (118) | 0.000 | 0.305 | 0.119 | 0.314 |
+
+  ROC-AUC, which does not depend on attack prevalence, is 0.988 for gradient boosting and 0.936 for
+  the evasion-aware Random Forest. Gradient boosting ranks 2018 Bot flows almost perfectly (0.956 at
+  a 0.26% false-positive rate) yet its stored threshold catches none of them; the Random Forest
+  cannot separate them at all (0.004). Neither model gets past about 0.48 on DoS even with the
+  oracle threshold, so DoS transfers poorly whatever the threshold. Bot is the family every
+  detector missed on 2017, yet gradient boosting ranks 2018 Bot well. Whether the 2018 Bot traffic
+  differs from, or is simply easier than, the 2017 Bot traffic is not established here; the
+  web-attack figures rest on 118 flows.
 - PR-AUC depends on attack prevalence (7.7% here against 16.9% in the 2017 test set), so it is not
   directly comparable across the two datasets; ROC-AUC is in the report files.
 - Two models, one seed, one 1,000,000-flow sample of three days, no confidence interval is quoted
   here, and the web-attack classes have 118 flows in total, so nothing is claimed for them. The
   2018 and 2017 captures also differ in attacker tools, network and label definitions, so a drop
-  cannot be attributed to one cause. A per-category breakdown has not been recorded yet.
+  cannot be attributed to one cause.
 
 ## Limitations
 

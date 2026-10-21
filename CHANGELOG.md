@@ -20,6 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- Per-category cross-dataset results recorded: gradient boosting ranks 2018 Bot almost perfectly
+  (recall 0.956 with a target-calibrated threshold) but catches none with the stored 2017 threshold.
 - First cross-dataset result (CICIDS2017 to CSE-CIC-IDS2018): a fixed 2017 threshold does not
   transfer; gradient boosting still ranks well, the Random Forest does not (ADR 0011).
 - Host-level analysis of the augmented gradient-boosting false positives recorded (99.8% from two
