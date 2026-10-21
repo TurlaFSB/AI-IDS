@@ -262,6 +262,18 @@ model learning the rules rather than the traffic; a feature-ablation check has n
 seed, no bootstrap intervals read out yet, and the port of the rules is still unchecked against the
 authors' corrected files.
 
+**Where the corrected-label false positives fall** (`ai-ids analyze` on the gradient-boosting model; 5,571
+false positives, test false-positive rate 1.11%). They are now spread rather than concentrated: the top
+host, 192.168.10.9, holds 11.9% of them (662; 1.9% of its 35,480 benign flows), 192.168.10.50 holds 9.6%
+(535; 6.4% of its 8,339 flows, 486 distinct destination ports), and 192.168.10.5 holds 8.5% (473; 1.2%).
+Under the original labels two scan-like hosts held about 99%. Excluding the top one, two and three
+hosts gives 1.05%, 0.95% and 0.93% (a sensitivity analysis, not a performance claim), so the rate sits
+close to the 1% target without any exclusion. 192.168.10.50 is still elevated at 6.4%, which suggests
+some scan-like benign-labelled traffic remains. Test benign traffic exists only on 6 and 7 July
+(Thursday and Friday), because the split is chronological within each class: the false-positive rate is
+1.39% on Thursday and 1.00% on Friday, and recall is at least 0.9995 on every day. Monday to Wednesday
+benign flows are in training and validation only.
+
 **Leave-one-family-out on the corrected labels** (`ai-ids holdout --config configs/corrected.yaml`, Random
 Forest as in the original-label test, seed 42, thresholds at a 1% target):
 
