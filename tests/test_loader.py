@@ -128,3 +128,16 @@ def test_files_at_the_spreadsheet_row_limit_are_flagged(
     monkeypatch.setattr(loader, "EXCEL_MAX_DATA_ROWS", 1_048_575)
     _, clean_report = loader.load_dataset(tmp_path)
     assert clean_report.possibly_truncated_files == []
+
+
+def test_exclude_features_drops_columns_and_rejects_unknown_names(synthetic_csv: Path) -> None:
+    from ai_ids.config import TrainConfig
+    from ai_ids.pipeline import prepare_data
+
+    _, base, _ = prepare_data(synthetic_csv, TrainConfig())
+    assert "destination_port" in base
+    _, reduced, _ = prepare_data(synthetic_csv, TrainConfig(exclude_features=("destination_port",)))
+    assert "destination_port" not in reduced
+    assert len(reduced) == len(base) - 1
+    with pytest.raises(ValueError, match="exclude_features"):
+        prepare_data(synthetic_csv, TrainConfig(exclude_features=("no_such_feature",)))

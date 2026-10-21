@@ -1,0 +1,39 @@
+# Feature ablation on the corrected labels (ADR 0013): corrected.yaml without the destination
+# port. The corrected-label rules use ports, so a model that reads the port could be learning the
+# labelling rules instead of the traffic. Compare with the models/corrected run.
+# Compares standard and evasion-aware training. Detectors ending in _aug are trained on the
+# training split plus perturbed copies of flows (ADR 0008):
+#   - symmetric: copies are drawn from benign and attack flows alike, so perturbation carries no
+#     label information (the first, attack-only design learned "padded means attack");
+#   - forward-only padding, the attacker-controlled direction, plus slowdowns;
+#   - magnitudes differ from the evaluation ones, and padding of both directions is never trained
+#     on, so the evaluation includes an unseen perturbation type.
+seed: 42
+corrected_labels: true
+exclude_features: [destination_port]
+target_fpr: 0.01
+operating_fprs: [0.001, 0.01, 0.05]
+split_fractions: [0.60, 0.15, 0.25]
+timestamp_pm_fix_before_hour: 8
+detectors: [random_forest, random_forest_aug, hist_gradient_boosting, hist_gradient_boosting_aug]
+random_forest:
+  n_estimators: 200
+  max_depth: null
+  min_samples_leaf: 1
+hist_gradient_boosting:
+  max_iter: 200
+  learning_rate: 0.1
+  max_leaf_nodes: 31
+augmentation:
+  mode: symmetric
+  padding_direction: forward
+  slowdowns: [3, 7]
+  paddings: [32, 128, 512]
+  fraction: 0.25
+fusion:
+  components: [random_forest_aug, hist_gradient_boosting_aug]
+  rules: [mean, max]
+bootstrap:
+  block_minutes: 5
+  n_resamples: 2000
+  level: 0.95

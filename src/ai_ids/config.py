@@ -29,6 +29,7 @@ class TrainConfig:
     timestamp_pm_fix_before_hour: int | None = 8
     timestamp_dayfirst: bool = True
     corrected_labels: bool = False
+    exclude_features: tuple[str, ...] = ()
     fp_profile_columns: tuple[str, ...] = ("destination_port", "source_ip", "destination_ip")
     random_forest: dict[str, Any] = field(default_factory=dict)
     isolation_forest: dict[str, Any] = field(default_factory=dict)
@@ -48,7 +49,13 @@ class TrainConfig:
         if unknown:
             raise ValueError(f"unknown config keys: {unknown}")
         values = dict(raw)
-        for key in ("operating_fprs", "split_fractions", "detectors", "fp_profile_columns"):
+        for key in (
+            "operating_fprs",
+            "split_fractions",
+            "detectors",
+            "fp_profile_columns",
+            "exclude_features",
+        ):
             if key in values:
                 values[key] = tuple(values[key])
         config = cls(**values)

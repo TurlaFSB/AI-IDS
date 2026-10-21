@@ -53,3 +53,10 @@ and 490 are dropped as attempted (flows after the documented Bot window ends), t
 held-out Bot test set, so that set probably consisted of attempted flows; not confirmed until a model
 is evaluated on the corrected labels. Whether these counts agree with the authors' corrected
 CSVs is not checked; retraining on the corrected labels has not been done.
+
+## Shortcut check
+
+The rules use time windows, addresses and ports, and destination port is also a model feature, so a
+model could reach near-perfect recall by learning the rules. `configs/ablation.yaml` retrains
+without `destination_port` (`exclude_features`); the result is recorded in docs/results-full.md when it
+has been run.

@@ -252,6 +252,10 @@ def prepare_data(
         corrected_labels=config.corrected_labels,
     )
     features = feature_columns(df)
+    unknown = sorted(set(config.exclude_features) - set(features))
+    if unknown:
+        raise ValueError(f"exclude_features names no feature column: {unknown}")
+    features = [f for f in features if f not in config.exclude_features]
     split = chronological_split(df, config.split_fractions)
     if split.val[~split.val[IS_ATTACK]].empty or split.test.empty:
         raise ValueError("dataset too small: validation or test split has no usable rows")

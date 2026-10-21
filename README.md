@@ -179,7 +179,8 @@ ai-ids family --source-data data/raw/TrafficLabelling --target-data data/raw/cse
 
 Experiments are configured in YAML: [configs/default.yaml](configs/default.yaml), `light.yaml`
 (laptops), `robustness.yaml` (standard vs evasion-aware training, ADR 0008) and `corrected.yaml`.
-Unknown keys are rejected. To sign model artifacts, set `AI_IDS_MODEL_HMAC_KEY`
+Unknown keys are rejected. `configs/ablation.yaml` repeats the corrected-label run without the
+destination port (`exclude_features`) as a shortcut check. To sign model artifacts, set `AI_IDS_MODEL_HMAC_KEY`
 (see [.env.example](.env.example)) before training; the same key is then required to load them.
 Each run writes one directory per detector (`model.joblib`, `manifest.json`) and a `report.json`
 with metrics, operating points, per-attack recall, per-day FPR, drift, latency, dataset digests and
