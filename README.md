@@ -438,6 +438,7 @@ tests/             unit and end-to-end tests
 
 | Document | Purpose |
 |---|---|
+| [Results at a glance](docs/results-summary.md) | One-page summary of findings and what is not shown |
 | [Architecture](docs/architecture.md) | Components, data flow, target design |
 | [Threat model](docs/threat-model.md) | STRIDE analysis and mitigations |
 | [Standards alignment](docs/compliance.md) | NIST CSF 2.0, NIST SP 800-53, MITRE ATT&CK, OWASP ASVS |
