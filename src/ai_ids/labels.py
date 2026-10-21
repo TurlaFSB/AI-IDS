@@ -41,6 +41,8 @@ _TAXONOMY: dict[str, AttackInfo] = {
         ("bot", "botnet", "T1071"),
         ("infiltration", "infiltration", "T1105"),
         ("heartbleed", "exploit", "T1190"),
+        # Corrected CICIDS2017 labels (data.relabel): scans run from compromised internal hosts.
+        ("infiltration portscan", "infiltration", "T1046"),
         # CSE-CIC-IDS2018 names. "Infilteration" is the dataset's own spelling.
         ("dos attacks goldeneye", "dos", "T1499"),
         ("dos attacks slowloris", "dos", "T1499"),

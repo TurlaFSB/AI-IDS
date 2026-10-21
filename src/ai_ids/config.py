@@ -28,6 +28,7 @@ class TrainConfig:
     split_fractions: tuple[float, float, float] = (0.60, 0.15, 0.25)
     timestamp_pm_fix_before_hour: int | None = 8
     timestamp_dayfirst: bool = True
+    corrected_labels: bool = False
     fp_profile_columns: tuple[str, ...] = ("destination_port", "source_ip", "destination_ip")
     random_forest: dict[str, Any] = field(default_factory=dict)
     isolation_forest: dict[str, Any] = field(default_factory=dict)

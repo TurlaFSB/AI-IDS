@@ -6,10 +6,12 @@ import logging
 import re
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
 
+from ai_ids.data.relabel import label_changes, relabel_frame, rules_for
 from ai_ids.labels import resolve
 
 logger = logging.getLogger(__name__)
@@ -40,6 +42,7 @@ class CleaningReport:
     missing_values: int
     columns_dropped: list[str]
     possibly_truncated_files: list[str] = field(default_factory=list)
+    relabelling: list[dict[str, Any]] | None = None
 
     def to_dict(self) -> dict[str, object]:
         return asdict(self)
@@ -205,8 +208,35 @@ def feature_columns(df: pd.DataFrame) -> list[str]:
     return [c for c in df.columns if c not in NON_FEATURE_COLUMNS]
 
 
+def _apply_corrected_labels(
+    name: str, frame: pd.DataFrame, pm_fix_before_hour: int | None, dayfirst: bool
+) -> tuple[pd.DataFrame, dict[str, Any]]:
+    """Replace one capture file's labels by the corrected ones and drop "attempted" flows."""
+    rules = rules_for(name)
+    if rules is None:
+        raise ValueError(
+            f"no corrected-label rules for {name!r}: corrected labels exist only for the original "
+            "CICIDS2017 capture files"
+        )
+    stamps = _parse_timestamps(frame[TIMESTAMP], pm_fix_before_hour, dayfirst=dayfirst)
+    new_labels, attempted = relabel_frame(frame, rules, stamps, LABEL)
+    summary: dict[str, Any] = {
+        "file": name,
+        "flows": len(frame),
+        "attempted_flows_dropped": int(attempted.sum()),
+        "label_changes": label_changes(
+            frame[LABEL].fillna("(missing)"), new_labels.fillna("(missing)")
+        ),
+    }
+    return frame.assign(**{LABEL: new_labels})[~attempted.to_numpy()], summary
+
+
 def load_dataset(
-    path: Path, *, pm_fix_before_hour: int | None = 8, dayfirst: bool = True
+    path: Path,
+    *,
+    pm_fix_before_hour: int | None = 8,
+    dayfirst: bool = True,
+    corrected_labels: bool = False,
 ) -> tuple[pd.DataFrame, CleaningReport]:
     """Load one CSV file or every `*.csv` in a directory, then clean the combined frame."""
     path = Path(path)
@@ -223,9 +253,17 @@ def load_dataset(
             "file row count equals the spreadsheet limit; it was probably truncated",
             extra={"fields": {"files": truncated, "rows": EXCEL_MAX_DATA_ROWS}},
         )
+    relabelling: list[dict[str, Any]] | None = None
+    if corrected_labels:
+        relabelling = []
+        for index, file in enumerate(files):
+            frames[index], summary = _apply_corrected_labels(
+                file.name, frames[index], pm_fix_before_hour, dayfirst
+            )
+            relabelling.append(summary)
     cleaned, report = clean_flows(
         pd.concat(frames, ignore_index=True),
         pm_fix_before_hour=pm_fix_before_hour,
         dayfirst=dayfirst,
     )
-    return cleaned, replace(report, possibly_truncated_files=truncated)
+    return cleaned, replace(report, possibly_truncated_files=truncated, relabelling=relabelling)

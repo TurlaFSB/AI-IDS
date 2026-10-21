@@ -38,6 +38,12 @@ IP addresses and timestamps in flow records can identify individuals (GDPR Recit
 - **Timestamps:** CIC-IDS-2017 dates are day-first (`4/7/2017` is 4 July 2017); the loader parses
   them accordingly (`timestamp_dayfirst`).
 
+## Corrected CICIDS2017 labels
+`ai-ids relabel` and `corrected_labels: true` re-label CICIDS2017 flows from attack timelines in the
+published literature (ADR 0013). The rules cover attack windows, internal and attacker addresses and
+ports; they describe a public testbed capture and contain no personal data. Flows labelled "attempted"
+are dropped. Corrected-label runs must be reported separately from original-label runs.
+
 ## CSE-CIC-IDS2018 files used for the transfer test
 - Each of the three day files has exactly 1,048,575 rows (Excel's limit minus the header), so they
   were almost certainly truncated at export; counts of some attack classes are partial.

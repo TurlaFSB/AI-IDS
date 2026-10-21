@@ -1,0 +1,44 @@
+# 0013. Corrected CICIDS2017 labels, re-derived from published attack timelines
+
+Status: Accepted (2026-10-21); first run pending
+
+## Context
+The model card has said since the first real run that much of the false-positive rate may be label
+noise: two hosts produce almost all false positives, and they behave like scanners. That was a
+hypothesis with no independent source. Engelen, Rimmer and Joosen (IEEE SPW 2021) and Liu, Engelen,
+Lynar, Essam and Joosen (IEEE CNS 2022) audited CICIDS2017 and published labelling scripts built from
+the actual attack timelines (windows, attacker and victim addresses, ports, payload conditions).
+Rebuilding their corrected dataset from the raw captures needs the PCAPs (tens of gigabytes), their
+modified flow extractor and their scripts, which this project cannot run on a laptop.
+
+## Decision
+- `ai_ids.data.relabel` re-implements their labelling *rules* as data: per capture file, an ordered
+  list of rules (window, addresses, ports, payload and packet conditions). Later rules override
+  earlier ones and unclaimed flows are benign, as in the published scripts. The code is our own
+  (the repository carries no licence file) and the rules are facts about the capture; the paper is
+  cited.
+- It corrects labels on the **original** CICFlowMeter flows. The authors also repaired the flow
+  extractor, which changes the flows; that part is not reproduced, so this isolates the labelling
+  correction only.
+- Attack windows are UTC while the capture timestamps are local (UTC-3); windows are shifted.
+  Sanity checks that did not require running anything on the data: the FTP-Patator window converts to
+  09:17-10:20 local, matching the dataset's own documented 09:20-10:20, and the scan from
+  `192.168.10.8` converts to 15:05-15:46, the window in which our models' false positives cluster.
+- Flows inside an attack's timeline that carry no attack payload ("attempted" flows) are neither clean
+  benign traffic nor an attack to detect, so the loader drops them and reports the number.
+- `corrected_labels: true` in the config switches it on for loading, training and analysis;
+  `ai-ids analyze` refuses a model trained with the other label set, because the flows in each split
+  would differ. `ai-ids relabel` writes the old-versus-new label table without training anything.
+- `configs/corrected.yaml` repeats the evasion-aware configuration with corrected labels.
+
+## Consequences
+- The headline question becomes testable: with the corrected labels, do the two hosts' false
+  positives become true positives, and what do recall, false-positive rate and the unseen-family
+  results look like? Retraining is required; re-scoring an old model on corrected test labels would
+  put flows it trained on into the new test set.
+- The port was written from the published scripts and has not been checked against the authors'
+  corrected CSVs. Unit tests pin its semantics (window conversion, minute flooring, reply direction,
+  override order, payload filter, blank rows), and the report's label-change table is the check to
+  read. Any disagreement with the authors' files is a bug in this port, not a finding.
+- Only the original CICIDS2017 capture files have rules. Other datasets are refused.
+- 2018 labels are not covered; the 2018 files we used are also truncated (ADR 0011).

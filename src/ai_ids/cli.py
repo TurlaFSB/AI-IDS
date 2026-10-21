@@ -15,7 +15,14 @@ import pandas as pd
 from ai_ids import __version__
 from ai_ids.config import TrainConfig
 from ai_ids.data.integrity import dataset_checksums
-from ai_ids.data.loader import TIMESTAMP, clean_flows, feature_columns, normalize_columns
+from ai_ids.data.loader import (
+    TIMESTAMP,
+    clean_flows,
+    feature_columns,
+    load_dataset,
+    normalize_columns,
+)
+from ai_ids.data.relabel import summarise_changes
 from ai_ids.data.split import chronological_split
 from ai_ids.data.synthetic import generate_flows
 from ai_ids.evaluation.familystudy import run_family_study
@@ -68,6 +75,13 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
     analyze.add_argument("--out", type=Path, required=True, help="output JSON file")
     analyze.add_argument("--config", type=Path, help="YAML experiment config used for training")
+
+    relabel = sub.add_parser(
+        "relabel", help="apply the corrected CICIDS2017 labels and report what changed"
+    )
+    relabel.add_argument("--data", type=Path, required=True, help="CICIDS2017 CSV directory")
+    relabel.add_argument("--out", type=Path, required=True, help="output JSON file")
+    relabel.add_argument("--config", type=Path, help="YAML experiment config (timestamp options)")
 
     adaptive = sub.add_parser(
         "adaptive", help="per-flow adaptive evasion (best-of-grid adversary) on a saved model"
@@ -282,6 +296,23 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"fpr={test['false_positive_rate']:.4f} split_verified="
             f"{analysis['split_check']['verified']}"
         )
+        return 0
+
+    if args.command == "relabel":
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        relabelled, cleaning = load_dataset(
+            args.data,
+            pm_fix_before_hour=config.timestamp_pm_fix_before_hour,
+            dayfirst=config.timestamp_dayfirst,
+            corrected_labels=True,
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(cleaning.to_dict(), indent=2, default=str) + "\n")
+        for entry in cleaning.relabelling or []:
+            change_summary = summarise_changes(entry["label_changes"])
+            print(f"{entry['file']}: {entry['flows']} flows; {change_summary}")
+        counts = relabelled["label"].value_counts().to_dict()
+        print(f"corrected label counts after cleaning: {counts}")
         return 0
 
     if args.command == "adaptive":

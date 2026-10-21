@@ -311,7 +311,7 @@ console output and `report.json` of the run, not recomputed.
 
 - **Dataset artefacts:** CIC-IDS-2017 has documented labelling and flow-construction issues,
   and attacks were generated with a small set of tools, so models may learn tool signatures
-  rather than general behaviour. Corrected-label support is planned.
+  rather than general behaviour. Corrected-label support exists (ADR 0013) but has not been run on the real data yet.
 - **Very small classes** (for example Heartbleed, Infiltration) have tiny test supports; their
   recall estimates are unreliable.
 - **Distribution shift:** performance on other networks is unknown. Drift monitoring and

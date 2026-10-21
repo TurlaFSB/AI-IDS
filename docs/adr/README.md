@@ -18,3 +18,4 @@ Superseded records are kept and marked, never deleted.
 | [0010](0010-scoring-service.md) | Scoring service, dashboard and replay demo | Accepted |
 | [0011](0011-cross-dataset-evaluation.md) | Cross-dataset evaluation without refitting | Accepted |
 | [0012](0012-adaptive-evasion.md) | Adaptive evasion in feature space | Accepted |
+| [0013](0013-corrected-labels.md) | Corrected CICIDS2017 labels from published attack timelines | Accepted |

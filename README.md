@@ -390,6 +390,17 @@ What this does and does not show:
 The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
 console output and `report.json` of the run, not recomputed.
 
+### Corrected labels (tooling ready, results pending)
+
+CICIDS2017's shipped labels contain documented errors. `ai-ids relabel --data <2017 folder> --out
+relabel.json` re-labels the original flows with rules re-implemented from the attack timelines
+published by Engelen, Rimmer and Joosen (IEEE SPW 2021) and Liu, Engelen, Lynar, Essam and Joosen
+(IEEE CNS 2022) and writes an old-versus-new label table; `corrected_labels: true` in a config trains
+and evaluates on the corrected labels (`configs/corrected.yaml`). Flows that belong to an attack
+timeline but carry no attack payload are dropped and counted. This corrects labels only, not the
+flows (the authors also repaired the flow extractor), and the port has not been checked against
+their corrected CSVs; see [ADR 0013](docs/adr/0013-corrected-labels.md). No results yet.
+
 ### Attack-family comparison across datasets
 
 `ai-ids family --source-data <2017> --target-data <2018> --category botnet --model-dir ...` compares
@@ -537,7 +548,7 @@ What this shows and does not show:
 
 - CICIDS2017 has documented labelling and flow-construction problems
   (see Engelen, Rimmer and Joosen, "Troubleshooting an Intrusion Detection Dataset: the CICIDS2017
-  Case Study", IEEE Security and Privacy Workshops, 2021). Corrected-label support is planned;
+  Case Study", IEEE Security and Privacy Workshops, 2021). Corrected-label support now exists (ADR 0013) but has not been run on the real data;
   treat early numbers as provisional.
 - Attacks in the dataset come from a small set of tools, so models learn tool signatures; the
   leave-one-family-out test above quantifies how little carries over to unseen families.

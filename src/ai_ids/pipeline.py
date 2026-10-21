@@ -249,6 +249,7 @@ def prepare_data(
         data_path,
         pm_fix_before_hour=config.timestamp_pm_fix_before_hour,
         dayfirst=config.timestamp_dayfirst,
+        corrected_labels=config.corrected_labels,
     )
     features = feature_columns(df)
     split = chronological_split(df, config.split_fractions)
@@ -306,6 +307,7 @@ def run_training(
                 "test": result["test"],
                 "dataset": report["dataset"]["rows"],
                 "split_fractions": list(config.split_fractions),
+                "corrected_labels": config.corrected_labels,
                 "dataset_files_sha256": report["dataset"]["files_sha256"],
             },
             hmac_key=hmac_key,
@@ -339,6 +341,11 @@ def _verify_split(metadata: dict[str, Any], config: TrainConfig, data_path: Path
     if "split_fractions" not in metadata or "dataset_files_sha256" not in metadata:
         logger.warning("artifact has no split metadata; split cannot be verified")
         return {"verified": False, "reason": "artifact predates split metadata; retrain to enable"}
+    if bool(metadata.get("corrected_labels", False)) != config.corrected_labels:
+        raise ValueError(
+            "corrected_labels differs from training; the flows and labels would not match the "
+            "split the model was trained on"
+        )
     if tuple(metadata["split_fractions"]) != tuple(config.split_fractions):
         raise ValueError(
             "split_fractions differ from training; analysing would leak training data into test"
