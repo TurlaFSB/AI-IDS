@@ -399,7 +399,29 @@ published by Engelen, Rimmer and Joosen (IEEE SPW 2021) and Liu, Engelen, Lynar,
 and evaluates on the corrected labels (`configs/corrected.yaml`). Flows that belong to an attack
 timeline but carry no attack payload are dropped and counted. This corrects labels only, not the
 flows (the authors also repaired the flow extractor), and the port has not been checked against
-their corrected CSVs; see [ADR 0013](docs/adr/0013-corrected-labels.md). No results yet.
+their corrected CSVs; see [ADR 0013](docs/adr/0013-corrected-labels.md).
+
+**First relabel run** (`ai-ids relabel`, all eight CICIDS2017 files, 3,119,345 flows; counts are before
+deduplication): 2,918,597 flows keep their label, **101,084 benign flows become attack**, 25 attack
+flows become benign, 1 changes attack type, and **99,638 flows are dropped as "attempted"**. The
+changes are concentrated where the literature says the original labels fail:
+
+| File | Benign to attack | Dropped as attempted |
+|---|---|---|
+| Thursday afternoon (infiltration) | 65,638 | 31 |
+| Friday afternoon DDoS | 31,339 | 351 |
+| Wednesday (DoS, Heartbleed) | 4,058 | 86,336 |
+| Tuesday (FTP, SSH) | 20 | 8,492 |
+| Thursday morning (web attacks) | 6 | 3,315 |
+| Friday port scan, Friday morning (Bot), Monday | 23, 0, 0 | 623, 490, 0 |
+
+After cleaning, the corrected counts include 40,306 `infiltration_portscan` flows (the scan from
+the compromised host `192.168.10.8` that dominated our models' false positives was labelled benign
+originally) and 159,355 DDoS flows (31,339 more than before, the server's side of the DDoS). Web attacks
+shrink to 74 brute-force, 18 XSS and 25 SQL-injection flows because most of the original web-attack
+flows are attempts without attack payload. Bot falls to 1,459 flows. These counts are what the port
+produces; whether they match the authors' own corrected CSVs has not been checked. No model has been
+retrained on them yet.
 
 ### Attack-family comparison across datasets
 

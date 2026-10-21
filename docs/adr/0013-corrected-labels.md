@@ -1,6 +1,6 @@
 # 0013. Corrected CICIDS2017 labels, re-derived from published attack timelines
 
-Status: Accepted (2026-10-21); first run pending
+Status: Accepted (2026-10-21); relabel run recorded, retraining pending
 
 ## Context
 The model card has said since the first real run that much of the false-positive rate may be label
@@ -42,3 +42,11 @@ modified flow extractor and their scripts, which this project cannot run on a la
   read. Any disagreement with the authors' files is a bug in this port, not a finding.
 - Only the original CICIDS2017 capture files have rules. Other datasets are refused.
 - 2018 labels are not covered; the 2018 files we used are also truncated (ADR 0011).
+
+## Outcome (first relabel run, original CICIDS2017 files, 3,119,345 flows)
+2,918,597 flows keep their label; 101,084 benign flows become attack (65,638 in the Thursday
+infiltration file, 31,339 in the Friday DDoS file); 25 attack flows become benign; 1 changes attack
+type; 99,638 are dropped as attempted (86,336 of them on Wednesday). The totals reconcile exactly.
+The scan from `192.168.10.8` becomes the `infiltration_portscan` class (40,306 flows after cleaning)
+and web attacks shrink to about 117 flows. Whether these counts agree with the authors' corrected
+CSVs is not checked; retraining on the corrected labels has not been done.

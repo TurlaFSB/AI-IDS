@@ -36,6 +36,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- First corrected-label relabel run recorded (ADR 0013): 101,084 benign flows become attack, 99,638
+  are dropped as attempted; the infiltration scan and the DDoS reverse flows account for most of
+  the benign-to-attack changes.
 - Bot-family comparison (2017 vs 2018) recorded: held-out ranking AUC 0.86/0.90, the Random Forest
   labels all 2018 Bot benign, the two datasets disagree on separating features; "no detector
   detects Bot" corrected to "recall 0 at the calibrated threshold".
