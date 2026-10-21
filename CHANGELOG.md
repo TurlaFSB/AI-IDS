@@ -43,6 +43,10 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are superseded.
 
 ### Fixed
+- `ai-ids transfer` treated corrupted timestamps (CSE-CIC-IDS2018 contains flows dated 1970) as the
+  start of the capture, so the local-calibration slice began in 1970. Timestamps before 2000 are
+  now set to missing, counted in the report, and excluded from the calibration and evaluation
+  slices. The calibration slice in the first run was still all benign and ended before any attack.
 - A typing error in the padding code that only appeared on Python 3.11 (CI caught it); the code is
   simplified and `scripts/check_matrix.sh` now runs the CI gates on every supported version locally.
 - Dates in CICIDS2017 files are day-first; they were parsed month-first, which mislabelled capture

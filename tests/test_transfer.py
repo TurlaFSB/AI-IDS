@@ -165,3 +165,24 @@ def test_local_calibration_rejects_bad_fractions(
     for bad in (0.0, 0.95):
         with pytest.raises(ValueError, match="calibration_fraction"):
             evaluate_transfer(fitted, frame, TrainConfig(), calibration_fraction=bad)
+
+
+def test_implausible_timestamps_are_excluded_from_local_calibration(
+    fitted: RandomForestDetector, target_csv: Path, tmp_path: Path
+) -> None:
+    raw = pd.read_csv(target_csv, encoding="latin-1")
+    raw.loc[:20, "Timestamp"] = "10/01/1970 03:04:26"
+    corrupted = tmp_path / "corrupted.csv"
+    raw.to_csv(corrupted, index=False, encoding="latin-1")
+
+    frame, _, info = prepare_target(corrupted)
+    missing = int(frame["timestamp"].isna().sum())
+    assert missing > 0
+    assert info["timestamps_set_missing_as_implausible"] == missing
+
+    report = evaluate_transfer(
+        fitted, frame, TrainConfig(bootstrap={"n_resamples": 20}), calibration_fraction=0.3
+    )
+    study = report["local_calibration_study"]
+    assert study["flows_without_valid_timestamp_excluded"] == missing
+    assert pd.Timestamp(study["calibration_window"][0]).year >= 2000

@@ -50,4 +50,6 @@ positive target, and every reported metric is computed on the later flows only; 
 threshold is reported on the same later flows. It assumes an operator can obtain a labelled-benign
 or confidently-benign window from the new network, which is plausible but is an assumption. The
 early slice also differs in attack mix from the later flows when the target spans several days, and
-that is stated in the report. No result for it has been recorded yet.
+that is stated in the report. Flows with
+implausible timestamps (before 2000; the 2018 files contain some dated 1970) are set to missing,
+counted, and excluded from both slices.

@@ -36,6 +36,10 @@ from ai_ids.evaluation.metrics import (
 from ai_ids.evaluation.uncertainty import block_bootstrap
 from ai_ids.models.detectors import BaseDetector
 
+# Some exports contain flows with corrupted timestamps (CSE-CIC-IDS2018 has dates in 1970).
+# Anything earlier than this is treated as a missing time, so it cannot pose as the capture start.
+PLAUSIBLE_AFTER = pd.Timestamp("2000-01-01")
+
 
 def prepare_target(
     path: Path,
@@ -51,7 +55,13 @@ def prepare_target(
     use a 24-hour clock.
     """
     frame, cleaning = load_dataset(path, pm_fix_before_hour=pm_fix_before_hour, dayfirst=dayfirst)
-    sampling: dict[str, Any] = {"max_rows": max_rows, "rows_before": len(frame)}
+    implausible = (frame[TIMESTAMP] < PLAUSIBLE_AFTER).to_numpy()
+    frame.loc[implausible, TIMESTAMP] = pd.NaT
+    sampling: dict[str, Any] = {
+        "max_rows": max_rows,
+        "rows_before": len(frame),
+        "timestamps_set_missing_as_implausible": int(implausible.sum()),
+    }
     if max_rows is not None and len(frame) > max_rows:
         frame = frame.sample(n=max_rows, random_state=seed).sort_values(TIMESTAMP, kind="stable")
         frame = frame.reset_index(drop=True)
@@ -111,9 +121,13 @@ def local_calibration(
     """
     if not 0.0 < fraction < 0.9:
         raise ValueError("calibration_fraction must be in (0, 0.9)")
-    if TIMESTAMP not in frame.columns or frame[TIMESTAMP].isna().any():
-        raise ValueError("local calibration needs valid timestamps on every target flow")
-    order = np.argsort(frame[TIMESTAMP].to_numpy(), kind="stable")
+    if TIMESTAMP not in frame.columns:
+        raise ValueError("local calibration needs a timestamp column")
+    valid = np.flatnonzero(frame[TIMESTAMP].notna().to_numpy())
+    if valid.size == 0:
+        raise ValueError("local calibration needs flows with valid timestamps")
+    # Flows without a usable time are left out of both slices; their count is reported.
+    order = valid[np.argsort(frame[TIMESTAMP].to_numpy()[valid], kind="stable")]
     cut = int(len(order) * fraction)
     calibration, evaluation = order[:cut], order[cut:]
     benign_scores = scores[calibration][~y_true[calibration]]
@@ -130,6 +144,7 @@ def local_calibration(
             "are on the later flows, which did not influence it"
         ),
         "calibration_fraction": fraction,
+        "flows_without_valid_timestamp_excluded": int(len(frame) - valid.size),
         "calibration_flows": int(cut),
         "calibration_benign_flows": int(benign_scores.size),
         "calibration_window": [
