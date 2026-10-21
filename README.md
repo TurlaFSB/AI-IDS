@@ -389,6 +389,14 @@ What this does and does not show:
 The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
 console output and `report.json` of the run, not recomputed.
 
+### Adaptive evasion (tooling ready, results pending)
+
+`ai-ids adaptive --data ... --model-dir ... --out adaptive.json` gives a per-flow adversary a grid of
+slowdowns and forward padding, scores every combination and keeps each flow's lowest score
+(ADR 0012). It reports clean and adaptive recall, a frontier over how much the adversary may use,
+and a benign control. It is still a feature-space test, not a packet-level one, and no numbers for
+it have been produced yet.
+
 ### Cross-dataset transfer: CICIDS2017 to CSE-CIC-IDS2018
 
 `ai-ids transfer` scores a second dataset with a saved model and its threshold fixed at training

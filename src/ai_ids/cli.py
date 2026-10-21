@@ -23,7 +23,7 @@ from ai_ids.evaluation.holdout import run_holdout
 from ai_ids.evaluation.seeds import run_seed_study
 from ai_ids.evaluation.transfer import prepare_target, run_transfer
 from ai_ids.logging_config import configure_logging
-from ai_ids.pipeline import prepare_data, run_analysis, run_training
+from ai_ids.pipeline import prepare_data, run_adaptive, run_analysis, run_training
 from ai_ids.registry import load_detector
 from ai_ids.service.replay import ReplaySummary, replay_flows
 from ai_ids.service.server import build_app, serve
@@ -68,6 +68,15 @@ def _build_parser() -> argparse.ArgumentParser:
     analyze.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
     analyze.add_argument("--out", type=Path, required=True, help="output JSON file")
     analyze.add_argument("--config", type=Path, help="YAML experiment config used for training")
+
+    adaptive = sub.add_parser(
+        "adaptive", help="per-flow adaptive evasion (best-of-grid adversary) on a saved model"
+    )
+    adaptive.add_argument("--data", type=Path, required=True, help="CSV file or directory")
+    adaptive.add_argument("--model-dir", type=Path, required=True, help="saved detector directory")
+    adaptive.add_argument("--out", type=Path, required=True, help="output JSON file")
+    adaptive.add_argument("--config", type=Path, help="YAML experiment config used for training")
+    adaptive.add_argument("--max-flows", type=int, default=20_000, help="flows per class sampled")
 
     transfer = sub.add_parser(
         "transfer", help="score a different dataset with a saved model, without refitting"
@@ -272,6 +281,29 @@ def main(argv: Sequence[str] | None = None) -> int:
             f"{analysis['detector']}: recall={test['recall']:.4f} "
             f"fpr={test['false_positive_rate']:.4f} split_verified="
             f"{analysis['split_check']['verified']}"
+        )
+        return 0
+
+    if args.command == "adaptive":
+        config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
+        key = os.environ.get(HMAC_KEY_ENV)
+        outcome = run_adaptive(
+            args.data,
+            args.model_dir,
+            config,
+            hmac_key=key.encode() if key else None,
+            max_flows=args.max_flows,
+        )
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(outcome, indent=2, default=str) + "\n")
+        study_result = outcome["adaptive_evasion"]
+        control = study_result["benign_control"]
+        print(
+            f"{outcome['detector']}: clean recall={study_result['clean_recall']:.4f} "
+            f"adaptive recall={study_result['adaptive_recall']:.4f} "
+            f"benign flagged under any combination="
+            f"{control['flagged_under_any_combination']:.4f} "
+            f"(clean fpr {control['clean_false_positive_rate']:.4f})"
         )
         return 0
 

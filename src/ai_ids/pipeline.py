@@ -28,6 +28,7 @@ from ai_ids.data.loader import (
     load_dataset,
 )
 from ai_ids.data.split import DatasetSplit, chronological_split
+from ai_ids.evaluation.adaptive import DEFAULT_MAX_FLOWS, adaptive_evasion
 from ai_ids.evaluation.metrics import (
     binary_report,
     breakdown_by_group,
@@ -345,6 +346,37 @@ def _verify_split(metadata: dict[str, Any], config: TrainConfig, data_path: Path
     if metadata["dataset_files_sha256"] != dataset_checksums(data_path):
         raise ValueError("dataset files differ from those the model was trained on")
     return {"verified": True}
+
+
+def run_adaptive(
+    data_path: Path,
+    model_dir: Path,
+    config: TrainConfig,
+    *,
+    hmac_key: bytes | None = None,
+    max_flows: int = DEFAULT_MAX_FLOWS,
+) -> dict[str, Any]:
+    """Per-flow adaptive evasion on the test split of a saved model (data and split verified)."""
+    split, features, _ = prepare_data(data_path, config)
+    detector = load_detector(model_dir, hmac_key=hmac_key)
+    split_check = _verify_split(read_manifest(model_dir).get("metadata", {}), config, data_path)
+    if detector.threshold_ is None:
+        raise ValueError("the saved detector has no threshold")
+    detector.set_inference_threads(1)
+    test = split.test
+    return {
+        "detector": detector.name,
+        "split_check": split_check,
+        "adaptive_evasion": adaptive_evasion(
+            detector,
+            test[test[IS_ATTACK]],
+            test[~test[IS_ATTACK]],
+            features,
+            float(detector.threshold_),
+            max_flows=max_flows,
+            seed=config.seed,
+        ),
+    }
 
 
 def run_analysis(

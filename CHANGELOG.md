@@ -7,6 +7,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Added
+- `ai-ids adaptive`: per-flow best-of-grid evasion adversary (timing and forward padding) with a
+  benign control (ADR 0012). No results recorded yet.
 - `ai-ids family`: descriptive comparison of one attack family across two datasets (which features
   separate it from benign traffic, whether directions agree, where a saved model's scores place it).
 - `AI_IDS_TRUSTED_PROXIES`: rate limiting behind a reverse proxy keys on the proxy-appended client
