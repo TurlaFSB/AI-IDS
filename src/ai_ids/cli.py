@@ -354,6 +354,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             dayfirst=config.timestamp_dayfirst,
         )
         target, _, _ = prepare_target(args.target_data, dayfirst=config.timestamp_dayfirst)
+        held_out = chronological_split(source, config.split_fractions).test
         study = run_family_study(
             source,
             target,
@@ -361,6 +362,7 @@ def main(argv: Sequence[str] | None = None) -> int:
             detector=reference,
             max_per_class=args.max_per_class,
             seed=config.seed,
+            scoring_source=held_out,
         )
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(study, indent=2, default=str) + "\n")

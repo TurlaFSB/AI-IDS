@@ -389,6 +389,14 @@ What this does and does not show:
 The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
 console output and `report.json` of the run, not recomputed.
 
+### Attack-family comparison across datasets
+
+`ai-ids family --source-data <2017> --target-data <2018> --category botnet --model-dir ...` compares
+one family across two datasets without training: which features separate it from benign traffic in
+each, whether directions agree, where a saved model's scores place it (on held-out source flows
+only), and which categories a multi-class model assigns it. It is descriptive; differences may come
+from the attack tool, the network, the capture or label definitions. Results are being recorded.
+
 ### Adaptive evasion (tooling ready, results pending)
 
 `ai-ids adaptive --data ... --model-dir ... --out adaptive.json` gives a per-flow adversary a grid of

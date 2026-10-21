@@ -53,6 +53,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   are superseded.
 
 ### Fixed
+- `ai-ids family` scored the model on every source flow, including ones it trained on, which made
+  the source-side scores in-sample. The model is now scored on the held-out test split only, the
+  report says which flows were scored, and it adds the categories the model assigns to the family.
 - `ai-ids transfer` treated corrupted timestamps (CSE-CIC-IDS2018 contains flows dated 1970) as the
   start of the capture, so the local-calibration slice began in 1970. Timestamps before 2000 are
   now set to missing, counted in the report, and excluded from the calibration and evaluation

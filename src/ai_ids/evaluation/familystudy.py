@@ -108,7 +108,13 @@ def score_summary(
     fam, ben = detector.score(family[features]), detector.score(benign[features])
     labels = np.r_[np.ones(len(fam)), np.zeros(len(ben))]
     threshold = detector.threshold_
+    predict = getattr(detector, "predict_category", None)
+    categories: dict[str, float] | None = None
+    if predict is not None:
+        predicted = pd.Series(predict(family[features]))
+        categories = {str(k): float(v) for k, v in predicted.value_counts(normalize=True).items()}
     return {
+        "predicted_category_shares": categories,
         "family_flows": len(fam),
         "benign_flows": len(ben),
         "auc_family_vs_benign": float(roc_auc_score(labels, np.r_[fam, ben])),
@@ -130,8 +136,14 @@ def run_family_study(
     max_per_class: int = 50_000,
     seed: int = 42,
     top_k: int = 15,
+    scoring_source: pd.DataFrame | None = None,
 ) -> dict[str, Any]:
-    """Compare one family across two cleaned datasets, optionally with a saved model's scores."""
+    """Compare one family across two cleaned datasets, optionally with a saved model's scores.
+
+    `scoring_source` is the part of the source dataset the model scores. It must be flows the model
+    never trained on (for example the held-out test split); scoring training flows gives in-sample
+    numbers that say nothing about generalisation. Feature separability always uses all flows.
+    """
     shared = [c for c in source.columns if c in target.columns]
     features = (
         list(detector.feature_names_)
@@ -167,8 +179,15 @@ def run_family_study(
         "comparison": compare_separability(source_sep, target_sep, top_k=top_k),
     }
     if detector is not None:
+        scored = source if scoring_source is None else scoring_source
+        m_family, m_benign = split_family(scored, category, max_per_class=max_per_class, seed=seed)
+        report["model_scores_source_scored_on"] = (
+            "all source flows (INCLUDES training flows: in-sample)"
+            if scoring_source is None
+            else "supplied held-out flows"
+        )
         report["model_scores"] = {
-            "source": score_summary(detector, s_family, s_benign),
+            "source": score_summary(detector, m_family, m_benign),
             "target": score_summary(detector, t_family, t_benign),
         }
     return report

@@ -76,3 +76,20 @@ def test_study_with_model_scores(cleaned: pd.DataFrame) -> None:
         assert 0.0 <= scores["auc_family_vs_benign"] <= 1.0
         assert scores["family_above_stored_threshold"] is not None
     assert "cannot separate" in report["note"]
+    assert "in-sample" in report["model_scores_source_scored_on"]
+    assert set(report["model_scores"]["target"]["predicted_category_shares"]) <= set(
+        cleaned[CATEGORY]
+    )
+
+
+def test_study_scores_only_the_supplied_held_out_flows(cleaned: pd.DataFrame) -> None:
+    features = feature_columns(cleaned)
+    detector = RandomForestDetector(n_estimators=10).fit(cleaned[features], cleaned[CATEGORY])
+    detector.calibrate(detector.score(cleaned[~cleaned[IS_ATTACK]][features]), 0.05)
+    held_out = cleaned.tail(len(cleaned) // 4)
+    report = run_family_study(
+        cleaned, cleaned, "botnet", detector=detector, max_per_class=300, scoring_source=held_out
+    )
+    assert report["model_scores_source_scored_on"] == "supplied held-out flows"
+    expected = int((held_out[CATEGORY] == "botnet").sum())
+    assert report["model_scores"]["source"]["family_flows"] == min(expected, 300)
