@@ -31,8 +31,10 @@ of our own fixes failed its control and is shown.
    under padding rises to 1.000. The benign control (pad benign flows the same way) shows 24%,
    50% and 70% of padded benign flows flagged: the model learned "padded means attack". Redesign:
    perturb benign and attack flows alike. Result: recall under padding 0.96 to 0.99, benign flags
-   not above the clean rate, no loss on clean data. Message: every robustness number needs a
-   control that could have exposed a shortcut. Keep the failed design in the repo.
+   not above the clean rate, no loss on clean data. Then the adaptive test: a per-flow adversary
+   choosing the best of 30 reshapings still takes about ten points off the evasion-aware model
+   (0.99 to 0.90), against 0.99 to 0.52 for the plain one. Message: every robustness number needs
+   a control that could have exposed a shortcut. Keep the failed design in the repo.
 6. **Does it travel? Cross-dataset (1:45).** Models trained on 2017, scored on three 2018 days with
    the 2017 threshold fixed. Recall 0.085 (Random Forest) and 0.049 (gradient boosting) at under
    0.1% false positives: almost nothing alerts. Split the cause: gradient boosting ranks well
@@ -40,7 +42,7 @@ of our own fixes failed its control and is shown.
    recall 0.830 at 0.26% false positives; the Random Forest's ranking is the problem (recall 0.127
    even with the best threshold). Takeaway: ship a recalibration step, and prefer scores that
    rank. Caveats on the slide: assumes a clean benign window, one model, one sample, 74% of the
-   attacks are Bot.
+   attacks are Bot, and the 2018 files are truncated at Excel's row limit (1,048,575 rows each).
 7. **Where it still fails (0:45).** DoS reaches only about 0.48 on 2018 for both models whatever
    the threshold. Bot is missed on 2017 by every detector yet ranked almost perfectly on 2018
    (recall 0.956 with the local threshold); we do not yet know why (Bot study: see below).
