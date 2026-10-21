@@ -33,7 +33,10 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    (a sensitivity analysis, not a performance claim). The evidence points to mislabelled
    attack-adjacent traffic but cannot prove it without verified labels. Benign-feature drift (PSI)
    is small, so this is not broad distribution shift.
-2. **Unseen attack families are mostly missed.** Leave-one-family-out recall is 0.27 pooled
+2. **Unseen attack families are mostly missed (original labels).** On corrected labels the pooled
+   leave-one-family-out recall is 0.88 (unweighted mean 0.69; botnet 0.51, brute force 0.58, web
+   attack 0.13 on 32 flows), but the corrected classes make held-out families resemble training
+   ones, so this is not evidence of better novel-attack detection. Original-label figures: Leave-one-family-out recall is 0.27 pooled
    (0.32 averaged over six families) against 0.99 on known attacks; botnet 0.00, port scan 0.06.
    The unsupervised detectors do worse. In-distribution recall mostly measures recognition of the
    dataset's attack tools.

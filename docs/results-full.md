@@ -262,6 +262,32 @@ model learning the rules rather than the traffic; a feature-ablation check has n
 seed, no bootstrap intervals read out yet, and the port of the rules is still unchecked against the
 authors' corrected files.
 
+**Leave-one-family-out on the corrected labels** (`ai-ids holdout --config configs/corrected.yaml`, Random
+Forest as in the original-label test, seed 42, thresholds at a 1% target):
+
+| Held-out family | Recall on the unseen family | False-positive rate | Test support |
+|---|---|---|---|
+| Botnet | 0.508 | 0.0129 | 366 |
+| Brute force | 0.575 | 0.0101 | 1,740 |
+| DDoS | 0.731 | 0.0097 | 39,839 |
+| DoS | 0.956 | 0.0100 | 43,109 |
+| Infiltration (incl. its scan) | 0.965 | 0.0129 | 10,089 |
+| Port scan | 0.990 | 0.0074 | 22,708 |
+| Web attack | 0.125 | 0.0100 | 32 |
+
+Pooled over 117,883 flows the unseen recall is 0.880 (the original-label run gave 0.27); the unweighted
+mean over the seven families is 0.693 (0.32 over six on the original labels). Botnet rose from 0.00 to
+0.51 and port scan from 0.06 to 0.99. Do not read this as better generalisation to novel attacks:
+(1) the corrected labels add a large `infiltration_portscan` class and a bigger DDoS class, and
+these are behaviourally close to the held-out port scan and DoS, so "unseen" families are no longer
+independent of the training set (the pooled figure is dominated by DoS, DDoS, port scan and
+infiltration); (2) the families that share no close relative in the data, Botnet, brute force and
+web attacks, still lose 40 to 90 points relative to known-family recall of about 1.0, and the
+web-attack figure rests on 32 flows; (3) the families differ from the original run, so the six-family
+and seven-family numbers are not directly comparable; (4) the effect of dropping hard "attempted" flows
+is not separated from the effect of the relabelling. A fair comparison needs a grouping that removes
+near-relatives (for example holding out DoS and DDoS together, and port scan and infiltration together).
+
 ## Attack-family comparison across datasets
 
 `ai-ids family --source-data <2017> --target-data <2018> --category botnet --model-dir ...` compares

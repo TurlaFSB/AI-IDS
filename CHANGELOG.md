@@ -12,7 +12,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   responsible-use sections. The long results record moved unchanged to docs/results-full.md.
 
 ### Added
-- First retraining on the corrected CICIDS2017 labels recorded in docs/results-full.md.
+- First retraining on the corrected CICIDS2017 labels recorded in docs/results-full.md, with the leave-one-family-out test on them.
 - Corrected CICIDS2017 labels (ADR 0013): `ai_ids.data.relabel` re-implements the published attack
   timelines as ordered rules; `ai-ids relabel` reports old-versus-new labels; `corrected_labels` in
   the config trains and evaluates on them (`configs/corrected.yaml`); analysis refuses a model trained
