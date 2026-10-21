@@ -277,7 +277,8 @@ Forest as in the original-label test, seed 42, thresholds at a 1% target):
 
 Pooled over 117,883 flows the unseen recall is 0.880 (the original-label run gave 0.27); the unweighted
 mean over the seven families is 0.693 (0.32 over six on the original labels). Botnet rose from 0.00 to
-0.51 and port scan from 0.06 to 0.99. Do not read this as better generalisation to novel attacks:
+0.51, DoS from 0.15 to 0.96, brute force from 0.26 to 0.58 and port scan from 0.06 to 0.99, while web
+attacks fell from 0.87 (538 flows, most now dropped as attempts) to 0.13 (32 flows). Do not read this as better generalisation to novel attacks:
 (1) the corrected labels add a large `infiltration_portscan` class and a bigger DDoS class, and
 these are behaviourally close to the held-out port scan and DoS, so "unseen" families are no longer
 independent of the training set (the pooled figure is dominated by DoS, DDoS, port scan and
