@@ -4,7 +4,7 @@ One page. Every number is copied from a run recorded in the [README](../README.m
 [model card](model-card.md); where a number has an interval or a caveat, it is given here. All
 results are CICIDS2017 only, a per-class chronological split (60/15/25), thresholds calibrated for a
 1% false-positive rate on benign validation traffic, seed 42 unless a seed spread is shown.
-Cross-dataset results do not exist yet.
+One cross-dataset test (2017 to 2018) is reported below; live-traffic results do not exist.
 
 ## Data
 3,119,345 flows loaded; 2,522,525 kept after removing 288,602 rows without a label and 308,218
@@ -46,9 +46,16 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    boosting it costs the clean operating point (false-positive rate 0.26% to 7.0%), and 99.8% of
    that extra cost sits on the same two scan-like hosts.
 5. **The Bot family is missed by every detector** (recall 0.00 on 490 test flows).
+6. **A threshold fixed on 2017 does not transfer to 2018.** On three CSE-CIC-IDS2018 days
+   (1,000,000-flow sample, 7.7% attacks) the evasion-aware Random Forest keeps recall 0.085 and
+   gradient boosting 0.049 at false-positive rates of 0.05% and 0.01%. Gradient boosting still
+   ranks well (PR-AUC 0.898) and would reach recall 0.83 at 0.26% false positives with a threshold
+   set on the target's benign labels (an upper bound, not deployable); the Random Forest ranks
+   poorly (PR-AUC 0.506; recall 0.127 even with that threshold). Two models, one seed, an
+   attack mix that is 74% Bot; no per-category breakdown yet.
 
 ## What is not shown
-- Any result on a second dataset or live traffic.
+- Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.
 - Packet-level or adaptive-adversary evasion: the evasion work is feature-space, single-seed and
   covers only the perturbation families we modelled.
 - Corrected labels: CICIDS2017's label problems are documented, and no verified corrected-label

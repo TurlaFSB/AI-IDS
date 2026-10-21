@@ -389,15 +389,44 @@ What this does and does not show:
 The exact commit is recorded in `report.json` (`git_commit`); these tables are transcribed from the
 console output and `report.json` of the run, not recomputed.
 
-### Cross-dataset transfer (tooling ready, results pending)
+### Cross-dataset transfer: CICIDS2017 to CSE-CIC-IDS2018
 
-`ai-ids transfer --data <other dataset> --model-dir models/<run>/<detector> --out transfer.json`
-scores a second dataset with a saved model and its fixed threshold, with no refitting (ADR 0011).
-The report gives threshold-free metrics, the stored-threshold result with block-bootstrap
-intervals, and an oracle re-calibrated point that bounds what recalibration could recover.
-CSE-CIC-IDS2018 column names and labels are mapped to the CICIDS2017 ones; the mapping is
-untested against the real files, and the command fails with a list of missing features if it is
-wrong. No cross-dataset numbers have been produced yet, so none are claimed here.
+`ai-ids transfer` scores a second dataset with a saved model and its threshold fixed at training
+time, with no refitting (ADR 0011). Models were trained on CICIDS2017 (`configs/robustness.yaml`,
+seed 42); the target was three CSE-CIC-IDS2018 day files (Thursday 15 Feb, Thursday 22 Feb, Friday
+2 Mar), cleaned and deduplicated to 2,560,995 flows, then a seeded random sample of 1,000,000 flows:
+923,178 benign and 76,822 attacks (Bot 56,578; DoS GoldenEye 16,181; DoS Slowloris 3,945; web
+attacks 118 in total). All 78 model features matched after column aliasing.
+
+| Model (trained on 2017) | Stored threshold: recall / FPR / precision | Oracle re-calibrated: recall / FPR | PR-AUC on 2018 |
+|---|---|---|---|
+| Random Forest, evasion-aware | 0.085 / 0.0005 / 0.930 | 0.127 / 0.0030 | 0.506 |
+| Gradient boosting | 0.049 / 0.0001 / 0.972 | 0.830 / 0.0026 | 0.898 |
+
+The "oracle" point chooses a threshold from the target's own benign labels at the training false-
+positive target, so it is an upper bound on what recalibration could recover, not a deployable
+setting.
+
+What this shows and does not show:
+- **A threshold fixed on 2017 does not carry over.** Both models almost never alert on 2018
+  (false-positive rate 0.01% to 0.05%, against a 1% target) and miss over 90% of attacks. What
+  they do flag is correct (precision 0.93 and 0.97), so the failure is missed attacks, not noise.
+- **The two models fail for different reasons.** Gradient boosting still ranks 2018 flows well
+  (PR-AUC 0.898), and with a threshold set on the target's benign traffic it would catch 83% of
+  attacks at a 0.26% false-positive rate; its stored threshold is simply wrong for the new
+  scores. The Random Forest ranks poorly (PR-AUC 0.506) and recalibration barely helps (recall
+  0.127), so its problem is the ranking itself.
+- **The attack mix is dominated by Bot (74% of attacks), and the 2017 models scored zero on 2017
+  Bot.** Since the oracle recall of 0.83 exceeds the 26% of attacks that are not Bot, gradient
+  boosting must be catching most 2018 Bot flows (at least about 77% of them, by arithmetic). Whether
+  2018 Bot traffic simply differs from 2017 Bot traffic, and whether this is an easier family, is
+  not established here.
+- PR-AUC depends on attack prevalence (7.7% here against 16.9% in the 2017 test set), so it is not
+  directly comparable across the two datasets; ROC-AUC is in the report files.
+- Two models, one seed, one 1,000,000-flow sample of three days, no confidence interval is quoted
+  here, and the web-attack classes have 118 flows in total, so nothing is claimed for them. The
+  2018 and 2017 captures also differ in attacker tools, network and label definitions, so a drop
+  cannot be attributed to one cause. A per-category breakdown has not been recorded yet.
 
 ## Limitations
 
@@ -408,8 +437,8 @@ wrong. No cross-dataset numbers have been produced yet, so none are claimed here
 - Attacks in the dataset come from a small set of tools, so models learn tool signatures; the
   leave-one-family-out test above quantifies how little carries over to unseen families.
 - Very small classes (Heartbleed, Infiltration) have tiny test sets and unreliable recall.
-- Everything above is measured on one dataset (CICIDS2017); cross-dataset behaviour has not been
-  measured yet.
+- Everything except the cross-dataset test above is measured on one dataset (CICIDS2017); the
+  cross-dataset test shows a fixed 2017 threshold failing on 2018 traffic.
 - The evasion analysis is feature-space only (not packet-level); performance on other networks is
   unknown.
 - Model artifacts are pickle-based: load only verified artifacts from storage you control.

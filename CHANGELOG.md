@@ -9,8 +9,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 - `ai-ids transfer`: score a different dataset (CSE-CIC-IDS2018 column names and labels are
   supported) with a saved model and fixed threshold, reporting threshold-free metrics, the
-  stored-threshold result and an oracle re-calibrated upper bound (ADR 0011). No cross-dataset
-  results have been produced yet.
+  stored-threshold result and an oracle re-calibrated upper bound (ADR 0011). The first
+  cross-dataset results are recorded under Results.
 - Scoring service (Flask, waitress): `/v1/score`, `/v1/alerts`, `/v1/stats`, `/metrics`, health
   and readiness probes, OpenAPI spec, bearer-key scopes, rate limiting, strict validation and
   security headers; a same-origin dashboard; `ai-ids serve` and `ai-ids replay`; ADR 0010, API
@@ -20,6 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- First cross-dataset result (CICIDS2017 to CSE-CIC-IDS2018): a fixed 2017 threshold does not
+  transfer; gradient boosting still ranks well, the Random Forest does not (ADR 0011).
 - Host-level analysis of the augmented gradient-boosting false positives recorded (99.8% from two
   scan-like hosts).
 - First full-data run of bootstrap intervals, three-seed spread and score fusion recorded; fusion

@@ -1,6 +1,6 @@
 # 0011. Cross-dataset evaluation without refitting
 
-Status: Accepted (2026-10-20); no results yet
+Status: Accepted (2026-10-20); first results recorded (README)
 
 ## Context
 Every result so far comes from one dataset, CICIDS2017, which has few attack tools, known label
@@ -35,3 +35,9 @@ under abbreviated column names, so the same model can score it without retrainin
   not compared.
 - The 2018 files have no source or destination addresses, so host-concentration diagnostics are
   unavailable for the target.
+
+## Outcome (first run)
+The column aliases matched all 78 model features on three real 2018 day files. A threshold fixed on
+2017 failed to transfer for both models tested (recall below 0.09); the oracle point separated the
+causes: gradient boosting still ranked well and would recover to 0.83 recall, the Random Forest did
+not (0.127). Numbers and caveats are in the README.
