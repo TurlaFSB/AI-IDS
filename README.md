@@ -324,8 +324,10 @@ Recall by attack category on the test split:
   benign flows flagged and no loss on clean data (macro recall 0.870 to 0.884); the full table is in
   the [model card](docs/model-card.md). Gradient boosting becomes robust to slowing and forward
   padding but its clean false-positive rate rises from 0.26% to 7.0% and precision falls from
-  98.5% to 74.2%; a likely (unverified) reason is that it no longer relies on packet sizes and so
-  also flags the mislabelled scan traffic. All of this is feature-space, single-seed, and against
+  98.5% to 74.2%; the extra false positives are concentrated on two hosts (99.8% of them; 44% of one
+  host's benign flows), the same scan-like traffic that drives the Random Forest's, and with those
+  hosts excluded the rate is 0.019% (a sensitivity analysis, not a performance claim; whether
+  those flows are truly benign cannot be settled without verified labels). All of this is feature-space, single-seed, and against
   the perturbation families modelled, not against an adaptive adversary.
 - **Random Forest scores are coarse.** The score is the share of trees voting "attack", so very
   low FPR targets collapse (at a 0.1% target the threshold saturates and nothing is flagged).

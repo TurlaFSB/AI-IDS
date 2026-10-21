@@ -50,8 +50,10 @@ forward padding 0.990, padding of both directions (never trained on) 0.96-0.98 a
 plain model, slowing 10x 0.978 against 0.950. Benign flows flagged under perturbation stay at or
 below the clean rate, so the shortcut of the first design is absent. Gradient boosting becomes robust
 to slowing and forward padding, improves on the unseen type (0.47 to 0.72), but its clean false-positive
-rate rises from 0.26% to 7.0%, probably because it no longer depends on packet sizes and flags the
-mislabelled scan traffic (to be verified).
+rate rises from 0.26% to 7.0%, and `ai-ids analyze` shows why: 99.8% of those false positives come from two hosts doing
+scan-like traffic (999 and 7,404 distinct destination ports), the same traffic that drives the Random
+Forest's. The robust model flags attack-adjacent flows that plain gradient boosting ignored; the labels
+cannot say which is right.
 
 Limits: feature-space transformations, one seed, perturbation families chosen by us. The conclusion
 is that symmetric augmentation removes the specific weakness measured, not that the detectors are

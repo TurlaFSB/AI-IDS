@@ -227,10 +227,24 @@ Reading it. For the Random Forest the defence is genuine: recall under padding o
 slowing matches clean recall, and benign flows flagged under perturbation never exceed the clean
 rate (the shortcut of the first design flagged 24-70%). For gradient boosting the defence also
 holds for slowing and forward padding but is weaker on the unseen type (0.72), and the clean
-operating point changes sharply: false positives rise from 0.26% to 7.0%. A likely but unverified
-explanation is that the robust model no longer depends on packet sizes and therefore flags the
-mislabelled scan traffic; `ai-ids analyze` on the saved model tests this. All results are
+operating point changes sharply: false positives rise from 0.26% to 7.0%. The false-positive
+increase was traced to attack-adjacent traffic (see the analysis that follows). All results are
 feature-space and single-seed, and they cover the modelled perturbation families only.
+
+#### Where the augmented gradient-boosting false positives fall
+
+`ai-ids analyze` on the saved augmented gradient-boosting model (`configs/robustness.yaml`, split
+verified against the training data) supports this. Its false positives are not spread broadly: two
+hosts produce 99.8% of them. `192.168.10.8` accounts for 78.7% (44.1% of that host's 65,117 benign
+flows are flagged, against 2.1% for plain gradient boosting and 43.9% for the Random Forest; 999
+distinct destination ports on 11 hosts, 2017-07-06 15:10 to 15:45) and `192.168.10.50` for 21.1%
+(19.5% of its benign flows; 7,404 distinct destination ports on 3 hosts, 2017-07-06 15:23 to
+2017-07-07 16:16). With the top host excluded the false-positive rate is 1.69%, and with both
+excluded 0.019%. These are the same hosts and scan-like patterns that drive the Random Forest's
+false positives, so the augmented model's cost is concentrated on the attack-adjacent traffic and
+is not a general loss on ordinary benign traffic. This does **not** show those flows are truly
+attacks: no verified corrected-label source exists here, and excluding hosts after seeing where
+errors fall is a sensitivity analysis, not a performance claim.
 
 ## Uncertainty and fusion (method)
 

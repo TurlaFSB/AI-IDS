@@ -20,6 +20,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   detectors (ADR 0009).
 
 ### Results
+- Host-level analysis of the augmented gradient-boosting false positives recorded (99.8% from two
+  scan-like hosts).
 - First full-data run of bootstrap intervals, three-seed spread and score fusion recorded; fusion
   showed no clear gain over the augmented Random Forest (ADR 0009).
 
