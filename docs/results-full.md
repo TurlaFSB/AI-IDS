@@ -282,9 +282,12 @@ supported. Macro recall falls for gradient boosting (0.9998 to 0.9652) and sligh
 (0.9990 to 0.9889), which could be small classes losing the port. Per-category recall (Random Forest and gradient boosting,
 with port removed) shows no loss at category level: botnet 0.99 (366 test flows), brute force 0.99 (1,740),
 DDoS, DoS, infiltration and port scan 1.00, web attacks 0.97 and 0.94 (32 flows), exploit 1.00 (4 flows). The
-macro-recall drop therefore sits in the finer per-attack labels (macro recall averages those), almost
-certainly classes with a handful of test flows, but the per-attack output has not been read, so which
-class it is remains unverified. Limits of the check: it removes one feature, and other
+macro-recall drop sits in the finer per-attack labels, which macro recall averages. For gradient boosting,
+the only labels whose recall moved by more than 0.02 are `infiltration` (1.00 to 0.82, 11 test flows),
+`web_attack_sql_injection` (1.00 to 0.71, 7 flows) and `dos_slowhttptest` (1.00 to 0.97, 575 flows). So the
+port matters for two classes with under a dozen test flows, where one flow is worth 9 to 14 points, and
+barely for a large class; this is consistent with noise on tiny supports and is not evidence of a
+shortcut, but it cannot rule one out for those classes. Limits of the check: it removes one feature, and other
 features (flow duration, window sizes, packet counts) could still carry the same information; it is
 one seed; and it does not address the easier-test-set effect of dropping attempted flows.
 
