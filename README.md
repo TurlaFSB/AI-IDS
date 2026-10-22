@@ -28,7 +28,7 @@ split and an alert threshold calibrated for a **1% false-positive rate**.
 | 3 | **Feature-space evasion works.** Slowing and padding cut Random Forest recall from 0.99 to 0.52 against a per-flow adaptive adversary; web attacks fall from 0.97 to 0.02. | Evasion-aware training recovers part of it (0.99 to 0.90). A first, asymmetric defence "worked" only by learning padded means attack and is kept as a documented failure (ADR 0008). |
 | 4 | **A 2017 threshold does not transfer to 2018:** recall 0.05 to 0.09 on CSE-CIC-IDS2018. | Gradient boosting still *ranks* 2018 traffic well (PR-AUC 0.90) and reaches recall 0.83 at 0.26% false positives with a threshold set on the target's benign traffic. |
 | 5 | **Bot is invisible at the calibrated threshold** in every detector, yet ranks above most benign traffic. | Held-out AUC 0.86 to 0.90 on 2017; the Random Forest labels all 2018 Bot benign. On corrected labels the 490 held-out Bot flows were "attempted" flows and Bot recall is 0.99. |
-| 6 | **Retrained on the corrected labels, the 1% target roughly holds** (Random Forest 1.3% false positives, recall 0.9997; Bot recall 0.99) | The comparison is easier as well as cleaner (99,638 hard "attempted" flows are dropped), and the label rules use ports that are also model features. Unseen-family and evasion results have not been repeated. |
+| 6 | **Retrained on the corrected labels, the 1% target roughly holds** (Random Forest 1.3% false positives, recall 0.9997; Bot recall 0.99) | The comparison is easier as well as cleaner (99,638 hard "attempted" flows are dropped), and the label rules use ports that are also model features, but dropping the destination port changes recall by under 0.001. Evasion results have not been repeated. |
 
 Read [what is not shown](docs/results-summary.md#what-is-not-shown) before quoting any of these.
 Caveats that matter most: one network and attack toolset per dataset, feature-space (not
@@ -200,7 +200,7 @@ Seeds are fixed, each report records the dataset SHA-256 digests, the git commit
 and the 2017 results were reproduced exactly on a repeat run. Full runs take hours on a 16 GB
 laptop. The corrected-label retraining (`configs/corrected.yaml`) is recorded in
 [docs/results-full.md](docs/results-full.md); the destination-port ablation
-(`configs/ablation.yaml`) is implemented and not yet run.
+(`configs/ablation.yaml`) is recorded there too.
 
 Turn saved reports into one shareable page (no server, no scripts):
 

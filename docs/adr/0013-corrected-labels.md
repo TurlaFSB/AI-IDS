@@ -58,5 +58,6 @@ CSVs is not checked; retraining on the corrected labels has not been done.
 
 The rules use time windows, addresses and ports, and destination port is also a model feature, so a
 model could reach near-perfect recall by learning the rules. `configs/ablation.yaml` retrains
-without `destination_port` (`exclude_features`); the result is recorded in docs/results-full.md when it
-has been run.
+without `destination_port` (`exclude_features`). Result (docs/results-full.md): recall changes by at most 0.0005
+and the false-positive rate by 0.0003 to 0.0023, so the port is not the source of the corrected-label
+results; other features could still act as proxies, and macro recall falls for gradient boosting.

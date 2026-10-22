@@ -262,6 +262,28 @@ model learning the rules rather than the traffic; a feature-ablation check has n
 seed, no bootstrap intervals read out yet, and the port of the rules is still unchecked against the
 authors' corrected files.
 
+**Destination-port ablation** (`ai-ids train --config configs/ablation.yaml`: the corrected-label run with
+`destination_port` excluded; 77 features instead of 78; same split, seed 42 and thresholds). The label
+rules use ports, and destination port is a model feature, so this checks whether the near-perfect
+corrected-label results come from reading the port. Console summary lines of the run:
+
+| Model | Recall | False-positive rate | Precision | PR-AUC | Macro recall | Recall with port (corrected run) |
+|---|---|---|---|---|---|---|
+| Random Forest | 0.9995 | 0.0127 | 0.9486 | 0.9996 | 0.9889 | 0.9997 |
+| Random Forest, evasion-aware | 0.9996 | 0.0124 | 0.9496 | 0.9995 | 0.9802 | 0.9996 |
+| Gradient boosting | 0.9993 | 0.0088 | 0.9638 | 0.9963 | 0.9652 | 0.9997 |
+| Gradient boosting, evasion-aware | 0.9992 | 0.0089 | 0.9635 | 0.9979 | 0.9549 | 0.9994 |
+| Fusion, mean | 0.9992 | 0.0088 | 0.9637 | 0.9997 | 0.9662 | 0.9994 |
+| Fusion, max | 0.9995 | 0.0121 | 0.9509 | 0.9994 | 0.9791 | 0.9997 |
+
+Removing the port changes recall by at most 0.0005 and the false-positive rate by 0.0003 to 0.0023, so
+**the corrected-label results do not depend on the destination port**; the port-shortcut hypothesis is not
+supported. Macro recall falls for gradient boosting (0.9998 to 0.9652) and slightly for the Random Forest
+(0.9990 to 0.9889), which points at one or more small classes that used the port; the per-category
+output of this run has not been read yet. Limits of the check: it removes one feature, and other
+features (flow duration, window sizes, packet counts) could still carry the same information; it is
+one seed; and it does not address the easier-test-set effect of dropping attempted flows.
+
 **Where the corrected-label false positives fall** (`ai-ids analyze` on the gradient-boosting model; 5,571
 false positives, test false-positive rate 1.11%). They are now spread rather than concentrated: the top
 host, 192.168.10.9, holds 11.9% of them (662; 1.9% of its 35,480 benign flows), 192.168.10.50 holds 9.6%

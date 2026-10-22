@@ -84,8 +84,9 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
   limit (1,048,575 rows each), so the 2018 attack mix is partial.
 - Corrected labels: one retraining (Random Forest false-positive rate 1.3%, recall 0.9997, Bot
   recall 0.99) uses rules ported from the published timelines; the port is unchecked against the
-  authors' files, the test set is easier as well as cleaner, and unseen-family and evasion
-  results have not been repeated on it.
+  authors' files, the test set is easier as well as cleaner, and dropping the destination
+  port (which the rules also use) changes recall by under 0.001, and evasion results have not been
+  repeated on it.
 - Seed spread for the evasion results or for fusion.
 
 ## Engineering, briefly

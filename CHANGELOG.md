@@ -17,6 +17,7 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   per-category supports, false-positive concentration, adaptive frontier, holdout and transfer views.
 - `exclude_features` config key and `configs/ablation.yaml`: retrain the corrected-label experiment without
   the destination port, to test whether the models learn the labelling rules' ports instead of traffic.
+- Destination-port ablation on the corrected labels recorded: recall changes by under 0.001.
 - First retraining on the corrected CICIDS2017 labels recorded in docs/results-full.md, with the leave-one-family-out test on them.
 - Corrected CICIDS2017 labels (ADR 0013): `ai_ids.data.relabel` re-implements the published attack
   timelines as ordered rules; `ai-ids relabel` reports old-versus-new labels; `corrected_labels` in
