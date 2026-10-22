@@ -19,3 +19,4 @@ Superseded records are kept and marked, never deleted.
 | [0011](0011-cross-dataset-evaluation.md) | Cross-dataset evaluation without refitting | Accepted |
 | [0012](0012-adaptive-evasion.md) | Adaptive evasion in feature space | Accepted |
 | [0013](0013-corrected-labels.md) | Corrected CICIDS2017 labels from published attack timelines | Accepted |
+| [0014](0014-static-results-explorer.md) | Static results explorer instead of a results web app | Accepted |

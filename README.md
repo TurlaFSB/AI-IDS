@@ -173,6 +173,7 @@ ai-ids family --source-data data/raw/TrafficLabelling --target-data data/raw/cse
 | `ai-ids transfer` | Score another dataset with a saved model and a fixed threshold; compare with oracle and local calibration (ADR 0011) |
 | `ai-ids family` | Descriptive comparison of one attack family across two datasets |
 | `ai-ids relabel` | Apply the corrected CICIDS2017 labels and report what changed (ADR 0013) |
+| `ai-ids report-html` | Build one self-contained HTML results page from saved reports (no scripts, no network; ADR 0014) |
 | `ai-ids serve` | Run the scoring service and dashboard |
 | `ai-ids replay` | Replay recorded or synthetic flows into a running service |
 | `ai-ids checksum` | Print SHA-256 digests of dataset files |
@@ -197,8 +198,16 @@ ai-ids adaptive --data data/raw/TrafficLabelling --model-dir models/robust3/rand
 
 Seeds are fixed, each report records the dataset SHA-256 digests, the git commit and a dirty flag,
 and the 2017 results were reproduced exactly on a repeat run. Full runs take hours on a 16 GB
-laptop. The corrected-label retraining (`configs/corrected.yaml`) is implemented but its results are
-not yet recorded.
+laptop. The corrected-label retraining (`configs/corrected.yaml`) is recorded in
+[docs/results-full.md](docs/results-full.md); the destination-port ablation
+(`configs/ablation.yaml`) is implemented and not yet run.
+
+Turn saved reports into one shareable page (no server, no scripts):
+
+```bash
+ai-ids report-html --run original=models/robust3/report.json --run corrected=models/corrected/report.json \
+  --adaptive random_forest_aug=reports/adaptive.json --out reports/results.html
+```
 
 ## Architecture
 

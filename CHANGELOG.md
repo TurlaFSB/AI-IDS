@@ -12,6 +12,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   responsible-use sections. The long results record moved unchanged to docs/results-full.md.
 
 ### Added
+- `ai-ids report-html` (ADR 0014): one self-contained, script-free HTML results page built from saved
+  reports, with a hash-pinned Content Security Policy, escaped values, intervals, run comparison,
+  per-category supports, false-positive concentration, adaptive frontier, holdout and transfer views.
 - `exclude_features` config key and `configs/ablation.yaml`: retrain the corrected-label experiment without
   the destination port, to test whether the models learn the labelling rules' ports instead of traffic.
 - First retraining on the corrected CICIDS2017 labels recorded in docs/results-full.md, with the leave-one-family-out test on them.

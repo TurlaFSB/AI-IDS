@@ -32,6 +32,7 @@ from ai_ids.evaluation.transfer import prepare_target, run_transfer
 from ai_ids.logging_config import configure_logging
 from ai_ids.pipeline import prepare_data, run_adaptive, run_analysis, run_training
 from ai_ids.registry import load_detector
+from ai_ids.reporting.explorer import Labelled, build_page, load_report
 from ai_ids.service.replay import ReplaySummary, replay_flows
 from ai_ids.service.server import build_app, serve
 from ai_ids.service.settings import ServiceSettings, SettingsError
@@ -153,7 +154,56 @@ def _build_parser() -> argparse.ArgumentParser:
 
     checksum = sub.add_parser("checksum", help="print SHA-256 digests of dataset files")
     checksum.add_argument("path", type=Path)
+
+    page = sub.add_parser(
+        "report-html",
+        help="build one self-contained HTML results page from saved JSON reports",
+    )
+    labelled = "LABEL=PATH, repeatable"
+    page.add_argument(
+        "--run",
+        action="append",
+        default=[],
+        metavar="LABEL=PATH",
+        help=f"train report.json ({labelled})",
+    )
+    page.add_argument(
+        "--adaptive",
+        action="append",
+        default=[],
+        metavar="LABEL=PATH",
+        help=f"adaptive report ({labelled})",
+    )
+    page.add_argument(
+        "--holdout",
+        action="append",
+        default=[],
+        metavar="LABEL=PATH",
+        help=f"holdout report ({labelled})",
+    )
+    page.add_argument(
+        "--transfer",
+        action="append",
+        default=[],
+        metavar="LABEL=PATH",
+        help=f"transfer report ({labelled})",
+    )
+    page.add_argument(
+        "--note", action="append", default=[], help="caveat shown at the top (repeatable)"
+    )
+    page.add_argument("--title", default="AI-IDS results")
+    page.add_argument("--out", type=Path, required=True)
     return parser
+
+
+def _labelled(specs: Sequence[str]) -> list[Labelled]:
+    items = []
+    for spec in specs:
+        label, sep, path = spec.partition("=")
+        if not sep or not label or not path:
+            raise SystemExit(f"expected LABEL=PATH, got {spec!r}")
+        items.append(Labelled(label, load_report(Path(path))))
+    return items
 
 
 def _print_progress(summary: ReplaySummary) -> None:
@@ -406,6 +456,24 @@ def main(argv: Sequence[str] | None = None) -> int:
         for row in comparison.get("strongest", [])[:8]:
             auc_pair = f"auc source {row['auc_source']:.3f} target {row['auc_target']:.3f}"
             print(f"  {row['feature']}: {auc_pair}")
+        return 0
+
+    if args.command == "report-html":
+        try:
+            page_html = build_page(
+                title=args.title,
+                runs=_labelled(args.run),
+                adaptive=_labelled(args.adaptive),
+                holdout=_labelled(args.holdout),
+                transfer=_labelled(args.transfer),
+                notes=args.note,
+            )
+        except (ValueError, OSError) as error:
+            print(f"report-html: {error}", file=sys.stderr)
+            return 2
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(page_html, encoding="utf-8")
+        print(f"wrote {args.out} ({len(page_html):,} bytes)")
         return 0
 
     if args.command == "checksum":
