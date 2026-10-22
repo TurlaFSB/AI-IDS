@@ -279,8 +279,12 @@ corrected-label results come from reading the port. Console summary lines of the
 Removing the port changes recall by at most 0.0005 and the false-positive rate by 0.0003 to 0.0023, so
 **the corrected-label results do not depend on the destination port**; the port-shortcut hypothesis is not
 supported. Macro recall falls for gradient boosting (0.9998 to 0.9652) and slightly for the Random Forest
-(0.9990 to 0.9889), which points at one or more small classes that used the port; the per-category
-output of this run has not been read yet. Limits of the check: it removes one feature, and other
+(0.9990 to 0.9889), which could be small classes losing the port. Per-category recall (Random Forest and gradient boosting,
+with port removed) shows no loss at category level: botnet 0.99 (366 test flows), brute force 0.99 (1,740),
+DDoS, DoS, infiltration and port scan 1.00, web attacks 0.97 and 0.94 (32 flows), exploit 1.00 (4 flows). The
+macro-recall drop therefore sits in the finer per-attack labels (macro recall averages those), almost
+certainly classes with a handful of test flows, but the per-attack output has not been read, so which
+class it is remains unverified. Limits of the check: it removes one feature, and other
 features (flow duration, window sizes, packet counts) could still carry the same information; it is
 one seed; and it does not address the easier-test-set effect of dropping attempted flows.
 
