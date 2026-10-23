@@ -83,7 +83,8 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    payload-free beacon flows that resemble 2018 Bot. Ruleset 1, one model, truncated 2018 days.
 8. **The corrected-label adaptive result is not robustness.** Recall under the adversary is 0.9989, but
    84.8% of benign flows are flagged under at least one reshaping (1.35% unperturbed; 81.5% against 1.43% under the audited rules), so the detector
-   flags reshaped traffic wholesale. Seeds agree closely on corrected labels (recall ±0.0000 to ±0.0016).
+   flags reshaped traffic wholesale. The false alarms begin beyond the trained range: benign flags stay at
+   1.4% to 6.8% up to 5x slowdown and 512 bytes of padding, then jump to 28% at 1,024 bytes and 47% at 1,460. Seeds agree closely on corrected labels (recall ±0.0000 to ±0.0016).
 
 ## What is not shown
 - Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.

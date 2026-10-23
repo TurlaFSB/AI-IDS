@@ -474,8 +474,45 @@ cross-dataset behaviour depends heavily on label details that do not change in-d
 Whether that is label sensitivity or ordinary run-to-run variance in how a boosted model extrapolates to a
 shifted distribution has not been separated (it needs several seeds on the transfer test).
 
-**Not recorded:** the single-family leave-one-out under ruleset 2 stopped with a memory error on the 16 GB
-laptop while loading (1.63 GiB allocation), with no code fault involved; it is to be re-run.
+**Single-family leave-out under ruleset 2** (re-run after an out-of-memory stop on the first attempt, which
+was a laptop memory limit and not a code fault; Random Forest; the grouped recall for the same family is in
+brackets):
+
+| Held-out family | Recall on the unseen family | False-positive rate | Test flows |
+|---|---|---|---|
+| Botnet | 0.514 | 0.0132 | 366 |
+| Brute force | 0.675 | 0.0102 | 2,234 |
+| DDoS | 0.673 (grouped with DoS 0.638) | 0.0099 | 39,839 |
+| DoS | 0.963 (grouped with DDoS 0.769) | 0.0097 | 43,109 |
+| Infiltration | 0.966 (grouped with port scan 0.894) | 0.0142 | 10,088 |
+| Port scan | 0.955 (grouped with infiltration 0.853) | 0.0072 | 22,709 |
+| Web attacks | 0.188 | 0.0080 | 32 |
+
+Pooled over 118,377 flows the single-family unseen recall is 0.857 and the unweighted mean over seven
+families is 0.705; the grouped pooled figure for the same flows is 0.749. The gap between holding a family out
+alone and with its relative (DoS 0.963 to 0.769, port scan 0.955 to 0.853, infiltration 0.966 to 0.894) is the
+amount that close relatives in training inflated the single-family result. Unseen recall on the original
+labels was 0.27 pooled; part of the rise to 0.75 grouped is cleaner labels and dropped hard flows, which this
+test cannot separate from better generalisation.
+
+**Where reshaped benign flows start to be flagged** (adaptive evasion, ruleset 2; share of benign flows
+flagged when every flow gets one slowdown and one forward padding; the augmentation used in training reached
+7x slowdown and 512 bytes of padding):
+
+| Slowdown \ padding | 0 B | 32 B | 128 B | 512 B | 1024 B | 1460 B |
+|---|---|---|---|---|---|---|
+| x1 | 1.4% | 1.6% | 1.9% | 1.9% | 27.7% | 47.1% |
+| x2 | 1.6% | 2.4% | 2.7% | 3.1% | 27.3% | 48.0% |
+| x5 | 2.2% | 5.6% | 6.3% | 6.8% | 28.5% | 53.9% |
+| x10 | 4.4% | 9.4% | 9.8% | 10.8% | 35.4% | 62.6% |
+| x30 | 11.5% | 14.2% | 15.1% | 17.3% | 45.4% | 72.0% |
+
+Inside the trained range (up to 5x and 512 bytes) the benign flag rate stays between 1.4% and 6.8%; it jumps to
+about 28% at 1,024 bytes of padding and 47% at 1,460 bytes, beyond the largest trained padding, and slowdown
+alone reaches 11.5% at 30x (trained maximum 7x). This supports the extrapolation explanation: the detector
+treats flows that look unlike anything seen in training as attacks, so the high adaptive recall measures
+that behaviour and not robustness to a shaped attack. It is supported, not proven; retraining with
+augmentation over the full grid would test it, at the cost of letting the adversary's grid define the defence.
 
 ## Attack-family comparison across datasets
 
