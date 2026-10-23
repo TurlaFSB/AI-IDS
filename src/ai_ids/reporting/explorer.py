@@ -367,6 +367,28 @@ def _adaptive(items: Sequence[Labelled]) -> str:
             out.append(
                 _table(head, rows, "Recall as the adversary's allowed slowdown and padding grow")
             )
+        benign_cells = _dict(data.get("benign_by_combination"))
+        pads_b = list(_dict(next(iter(benign_cells.values()), {})))
+        if pads_b:
+            rows = [
+                _row(
+                    [_th(slow)]
+                    + [_heat(_dict(row).get(p), _pct(_dict(row).get(p), 1)) for p in pads_b]
+                )
+                for slow, row in benign_cells.items()
+            ]
+            head = [("Every benign flow reshaped by: slowdown", False)] + [
+                (p, True) for p in pads_b
+            ]
+            out.append(
+                _table(
+                    head,
+                    rows,
+                    "Share of benign flows flagged when every flow gets one reshaping "
+                    "(not a best-of-grid); "
+                    "high values mean the detector treats reshaped traffic as an attack",
+                )
+            )
         families = _dict(data.get("by_family"))
         if families:
             rows = []

@@ -51,6 +51,13 @@ def test_adaptive_recall_never_exceeds_clean_recall(fitted) -> None:  # type: ig
     assert frontier["slow<=x10"]["pad<=1024B"] == pytest.approx(report["adaptive_recall"])
     control = report["benign_control"]
     assert control["flagged_under_any_combination"] >= control["clean_false_positive_rate"]
+    # per-combination benign rates: the identity cell is the clean rate, and the union over all
+    # combinations is at least as large as every single cell
+    cells = report["benign_by_combination"]
+    assert cells["slow=x1"]["pad=0B"] == pytest.approx(control["clean_false_positive_rate"])
+    assert max(v for row in cells.values() for v in row.values()) <= (
+        control["flagged_under_any_combination"] + 1e-12
+    )
 
 
 def test_grids_must_start_at_the_identity(fitted) -> None:  # type: ignore[no-untyped-def]

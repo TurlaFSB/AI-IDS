@@ -14,6 +14,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   responsible-use sections. The long results record moved unchanged to docs/results-full.md.
 
 ### Added
+- Adaptive-evasion reports carry `benign_by_combination` (the benign flagged rate for each single reshaping), and
+  the results page shows it; corrected-label seed, adaptive and transfer results recorded (ruleset 1).
 - `scripts/reproduce_synthetic.sh` and docs/reproduce.md: end-to-end run on synthetic data that fails unless two
   seeded runs agree exactly; run by CI.
 - `ai-ids relabel-check`: reads the authors' labelling script as data and compares its rules with the port.

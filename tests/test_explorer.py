@@ -57,6 +57,7 @@ ADAPTIVE = {
         "benign_control": {"clean_false_positive_rate": 0.08, "flagged_under_any_combination": 0.1},
         "recall_frontier": {"slow<=x1": {"pad<=0B": 0.99, "pad<=32B": 0.9}},
         "by_family": {"dos": {"clean_recall": 1.0, "adaptive_recall": 0.8}},
+        "benign_by_combination": {"slow=x1": {"pad=0B": 0.08, "pad=32B": 0.5}},
         "note": "feature space only",
     }
 }
@@ -103,6 +104,7 @@ def test_full_page_contains_every_section_and_the_reported_numbers() -> None:
         "Adaptive evasion",
         "Unseen attack families",
         "Cross-dataset transfer",
+        "50.0%",
         "0.999 [0.990, 1.000]",
         "1.30% [1.00%, 2.00%]",
         "1.3x target",

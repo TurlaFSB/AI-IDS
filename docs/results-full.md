@@ -332,6 +332,50 @@ and seven-family numbers are not directly comparable; (4) the effect of dropping
 is not separated from the effect of the relabelling. A fair comparison needs a grouping that removes
 near-relatives (for example holding out DoS and DDoS together, and port scan and infiltration together).
 
+**Corrected labels: seeds, adaptive evasion and transfer** (ruleset version 1, models in `models/corrected`,
+seed 42 unless stated; these are to be re-run under ruleset 2, see ADR 0013).
+
+*Seed spread* (`ai-ids seeds --config configs/corrected.yaml`, seeds 42 to 44, mean and sample standard
+deviation; the split is fixed, so this is model randomness only):
+
+| Detector | Recall | False-positive rate | Precision |
+|---|---|---|---|
+| Random Forest | 0.9997 ± 0.0000 | 0.0131 ± 0.0001 | 0.9471 ± 0.0005 |
+| Random Forest, evasion-aware | 0.9996 ± 0.0000 | 0.0132 ± 0.0002 | 0.9467 ± 0.0008 |
+| Gradient boosting | 0.9987 ± 0.0016 | 0.0111 ± 0.0001 | 0.9547 ± 0.0006 |
+| Gradient boosting, evasion-aware | 0.9994 ± 0.0001 | 0.0108 ± 0.0002 | 0.9559 ± 0.0009 |
+
+The corrected-label results are stable across seeds, far more than the original-label ones; most of the
+original spread was label noise.
+
+*Adaptive evasion* (`ai-ids adaptive`, evasion-aware Random Forest): clean recall 0.9998, recall against the
+per-flow best-of-grid adversary 0.9989 (original labels: 0.99 to 0.895). **This must not be read as
+robustness.** The benign control shows the opposite: 84.8% of benign flows are flagged under at least one of
+the 30 combinations, against 1.35% unperturbed (original labels: 9.9% against 8.3%). The detector flags
+heavily reshaped traffic, benign or not, so an attacker's reshaped flows stay flagged because everything
+reshaped is. The grid reaches 30x slowdown and 1,460 bytes of padding, beyond the magnitudes used in
+training augmentation (3x and 7x, 32 to 512 bytes), so extrapolation outside the trained range is a candidate
+explanation; that is untested. The report now carries the benign flagged rate for every single combination
+(`benign_by_combination`), which shows where the false alarms begin; it has not been read yet.
+
+*Transfer to CSE-CIC-IDS2018* (`ai-ids transfer`, gradient boosting trained on the corrected labels; the
+same seeded 1,000,000-flow sample of three truncated 2018 days as before):
+
+| Operating point | Recall | False-positive rate | Precision |
+|---|---|---|---|
+| Stored threshold | 0.9058 | 0.0639 | 0.5413 |
+| Oracle threshold (target benign labels, 1% target) | 0.0500 | 0.0100 | 0.2940 |
+| Local calibration, earliest 15% as benign window, later flows | 0.0506 | 0.0109 | 0.3148 |
+| Stored threshold, same later flows | 0.9058 | 0.0644 | 0.5829 |
+
+PR-AUC on 2018 is 0.645; the same model trained on the original labels reached 0.898 and recall 0.83 at 0.26%
+false positives with a recalibrated threshold. So **correcting the labels improved in-distribution
+false positives and made transfer worse**: the ranking degraded, the stored threshold now over-alerts (6.4%
+false positives for recall 0.91), and recalibration no longer rescues it (recall 0.05 at 1% false
+positives). The cause has not been identified; per-category recall at these operating points has not
+been read. One model, one sample, one seed, ruleset 1; training labels are the only intended difference.
+Near-perfect in-distribution recall is not evidence of generalisation.
+
 ## Attack-family comparison across datasets
 
 `ai-ids family --source-data <2017> --target-data <2018> --category botnet --model-dir ...` compares

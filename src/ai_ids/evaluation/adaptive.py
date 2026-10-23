@@ -67,6 +67,25 @@ def _frontier(
     return table
 
 
+def _benign_by_combination(
+    scores: FloatArray, threshold: float, slowdowns: tuple[float, ...], paddings: tuple[float, ...]
+) -> dict[str, dict[str, float]]:
+    """Share of benign flows flagged when every flow gets exactly one (slowdown, padding).
+
+    Unlike the attack frontier this is not a best-of-grid: it shows where a detector starts to
+    treat reshaped benign traffic as an attack, which is the shortcut the benign control exists to
+    expose. The union over all combinations (`flagged_under_any_combination`) hides where that
+    begins, so the per-combination rates are reported as well.
+    """
+    return {
+        f"slow=x{s:g}": {
+            f"pad={p:g}B": float((scores[:, i, j] > threshold).mean())
+            for j, p in enumerate(paddings)
+        }
+        for i, s in enumerate(slowdowns)
+    }
+
+
 def adaptive_evasion(
     detector: BaseDetector,
     attacks: pd.DataFrame,
@@ -124,6 +143,9 @@ def adaptive_evasion(
         "share_of_detected_flows_evaded": evaded_among_detected,
         "recall_frontier": _frontier(attack_scores, threshold, slowdowns, paddings),
         "by_family": per_family,
+        "benign_by_combination": _benign_by_combination(
+            benign_scores, threshold, slowdowns, paddings
+        ),
         "benign_control": {
             "clean_false_positive_rate": float((benign_scores[:, 0, 0] > threshold).mean()),
             "flagged_under_any_combination": float((benign_worst > threshold).mean()),

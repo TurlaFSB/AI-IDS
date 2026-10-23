@@ -76,6 +76,14 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
    and port scan barely move. Slowing flows up to 30x alone costs 3 points; at most 32 bytes of
    padding on top costs another 4.5. Feature-space only, one seed, a 20,000-flow sample per class.
 
+7. **Correcting the labels did not help transfer.** Gradient boosting trained on the corrected labels ranks
+   2018 traffic worse (PR-AUC 0.645 against 0.898 on original labels) and recalibration no longer rescues
+   it (recall 0.05 at 1% false positives, against 0.83 at 0.26%). Ruleset 1, one model, truncated 2018
+   days, cause unidentified.
+8. **The corrected-label adaptive result is not robustness.** Recall under the adversary is 0.9989, but
+   84.8% of benign flows are flagged under at least one reshaping (1.35% unperturbed), so the detector
+   flags reshaped traffic wholesale. Seeds agree closely on corrected labels (recall ±0.0000 to ±0.0016).
+
 ## What is not shown
 - Live-traffic results, and cross-dataset results beyond the two models, three days and one seed above.
 - Packet-level evasion, or an adversary with gradients or a larger budget: the evasion work is
@@ -85,8 +93,8 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
 - Corrected labels: one retraining (Random Forest false-positive rate 1.3%, recall 0.9997, Bot
   recall 0.99) uses rules ported from the published timelines (ruleset 1; audited against the
   authors' script on 2026-10-23, five deviations fixed, re-run pending), the test set is easier as well as cleaner, and dropping the destination
-  port (which the rules also use) changes recall by under 0.001, and evasion results have not been
-  repeated on it.
+  port (which the rules also use) changes recall by under 0.001. Evasion was repeated for one model only,
+  and that result is not robustness (finding 8).
 - Seed spread for the evasion results or for fusion.
 
 ## Engineering, briefly
