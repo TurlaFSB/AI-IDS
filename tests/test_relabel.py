@@ -11,6 +11,7 @@ from ai_ids.data.integrity import dataset_checksums
 from ai_ids.data.loader import load_dataset
 from ai_ids.data.relabel import (
     ATTEMPTED_SUFFIX,
+    RULESET_VERSION,
     label_changes,
     relabel_frame,
     rules_for,
@@ -222,3 +223,36 @@ def test_rule_ordering_matches_numpy_semantics() -> None:
     # Guard against accidentally reordering rules: the last matching rule must win.
     frame = pd.DataFrame([_flow()])
     assert np.asarray(frame["source_port"]).dtype.kind in "iu"
+
+
+def test_analysis_refuses_a_model_trained_with_another_ruleset(tmp_path: Path) -> None:
+    path = _tuesday_csv(tmp_path)
+    metadata = {
+        "split_fractions": [0.6, 0.15, 0.25],
+        "dataset_files_sha256": dataset_checksums(path),
+        "corrected_labels": True,
+        "ruleset_version": RULESET_VERSION,
+    }
+    config = TrainConfig(corrected_labels=True)
+    assert _verify_split(metadata, config, path)["verified"] is True
+    with pytest.raises(ValueError, match="ruleset"):
+        _verify_split({**metadata, "ruleset_version": RULESET_VERSION - 1}, config, path)
+    # artifacts saved before rule sets were versioned count as ruleset 1
+    legacy = {k: v for k, v in metadata.items() if k != "ruleset_version"}
+    with pytest.raises(ValueError, match="ruleset 1"):
+        _verify_split(legacy, config, path)
+
+
+def test_analysis_refuses_a_model_trained_with_other_excluded_features(tmp_path: Path) -> None:
+    path = _tuesday_csv(tmp_path)
+    metadata = {
+        "split_fractions": [0.6, 0.15, 0.25],
+        "dataset_files_sha256": dataset_checksums(path),
+        "corrected_labels": False,
+        "exclude_features": ["destination_port"],
+    }
+    with pytest.raises(ValueError, match="exclude_features"):
+        _verify_split(metadata, TrainConfig(), path)
+    assert _verify_split(metadata, TrainConfig(exclude_features=("destination_port",)), path)[
+        "verified"
+    ]

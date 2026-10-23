@@ -78,8 +78,9 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
 
 7. **Correcting the labels did not help transfer.** Gradient boosting trained on the corrected labels ranks
    2018 traffic worse (PR-AUC 0.645 against 0.898 on original labels) and recalibration no longer rescues
-   it (recall 0.05 at 1% false positives, against 0.83 at 0.26%). Ruleset 1, one model, truncated 2018
-   days, cause unidentified.
+   it (recall 0.05 at 1% false positives, against 0.83 at 0.26%). The loss is mainly Bot (recall 0.007 at
+   1% false positives, against 0.956 before). Untested hypothesis: correcting the labels drops the
+   payload-free beacon flows that resemble 2018 Bot. Ruleset 1, one model, truncated 2018 days.
 8. **The corrected-label adaptive result is not robustness.** Recall under the adversary is 0.9989, but
    84.8% of benign flows are flagged under at least one reshaping (1.35% unperturbed), so the detector
    flags reshaped traffic wholesale. Seeds agree closely on corrected labels (recall ±0.0000 to ±0.0016).

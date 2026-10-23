@@ -356,7 +356,10 @@ heavily reshaped traffic, benign or not, so an attacker's reshaped flows stay fl
 reshaped is. The grid reaches 30x slowdown and 1,460 bytes of padding, beyond the magnitudes used in
 training augmentation (3x and 7x, 32 to 512 bytes), so extrapolation outside the trained range is a candidate
 explanation; that is untested. The report now carries the benign flagged rate for every single combination
-(`benign_by_combination`), which shows where the false alarms begin; it has not been read yet.
+(`benign_by_combination`), which shows where the false alarms begin; it has not been read yet. A second
+run on 2026-10-23 (recall 0.9992, benign 84.2% under some combination) used a model trained under ruleset 1
+but labels from ruleset 2 and is not part of the record: that mix is now refused (ADR 0013); the near-identical
+numbers suggest the conclusion does not depend on the rule fixes, which is an observation, not a test.
 
 *Transfer to CSE-CIC-IDS2018* (`ai-ids transfer`, gradient boosting trained on the corrected labels; the
 same seeded 1,000,000-flow sample of three truncated 2018 days as before):
@@ -372,8 +375,22 @@ PR-AUC on 2018 is 0.645; the same model trained on the original labels reached 0
 false positives with a recalibrated threshold. So **correcting the labels improved in-distribution
 false positives and made transfer worse**: the ranking degraded, the stored threshold now over-alerts (6.4%
 false positives for recall 0.91), and recalibration no longer rescues it (recall 0.05 at 1% false
-positives). The cause has not been identified; per-category recall at these operating points has not
-been read. One model, one sample, one seed, ruleset 1; training labels are the only intended difference.
+positives). Per-category recall (ruleset 1):
+
+| Category | Stored threshold | Oracle threshold (1% false positives) |
+|---|---|---|
+| Botnet | 0.965 | 0.007 |
+| DoS | 0.741 | 0.171 |
+| Web attacks | 0.331 | 0.305 |
+
+Bot is about three quarters of the sampled attacks, so the drop is mainly Bot: at the stored threshold
+it is caught (0.965, with 6.4% false positives), but at a 1% false-positive budget it is almost
+invisible (0.007), where the original-label model ranked 2018 Bot nearly perfectly (0.956). DoS fell
+from about 0.48 to 0.17 at the oracle point. A hypothesis, **untested**: the corrected labels drop the
+"attempted" flows (no payload), including the late Bot beacon flows, and 2018 Bot looks like that
+beacon-style traffic, so the corrected model never learned it. A test would train on the corrected labels
+with attempted flows kept as attacks, or compare 2018 Bot payload sizes with the dropped 2017 flows. The
+cause is otherwise unidentified. One model, one sample, one seed, ruleset 1; training labels are the only intended difference.
 Near-perfect in-distribution recall is not evidence of generalisation.
 
 ## Attack-family comparison across datasets

@@ -27,6 +27,7 @@ from ai_ids.data.loader import (
     feature_columns,
     load_dataset,
 )
+from ai_ids.data.relabel import RULESET_VERSION
 from ai_ids.data.split import DatasetSplit, chronological_split
 from ai_ids.evaluation.adaptive import DEFAULT_MAX_FLOWS, adaptive_evasion
 from ai_ids.evaluation.metrics import (
@@ -312,6 +313,8 @@ def run_training(
                 "dataset": report["dataset"]["rows"],
                 "split_fractions": list(config.split_fractions),
                 "corrected_labels": config.corrected_labels,
+                "ruleset_version": RULESET_VERSION if config.corrected_labels else None,
+                "exclude_features": list(config.exclude_features),
                 "dataset_files_sha256": report["dataset"]["files_sha256"],
             },
             hmac_key=hmac_key,
@@ -350,6 +353,18 @@ def _verify_split(metadata: dict[str, Any], config: TrainConfig, data_path: Path
             "corrected_labels differs from training; the flows and labels would not match the "
             "split the model was trained on"
         )
+    if config.corrected_labels:
+        # Artifacts saved before rule sets were versioned were trained with ruleset 1.
+        trained_with = int(metadata.get("ruleset_version") or 1)
+        if trained_with != RULESET_VERSION:
+            raise ValueError(
+                f"the model was trained with corrected-label ruleset {trained_with} but this "
+                f"code labels with ruleset {RULESET_VERSION}; the flows kept and their labels "
+                "differ, so analysing would mix rule sets. Retrain, or check out the commit "
+                "that trained it"
+            )
+    if list(metadata.get("exclude_features", [])) != list(config.exclude_features):
+        raise ValueError("exclude_features differs from training; the feature set would not match")
     if tuple(metadata["split_fractions"]) != tuple(config.split_fractions):
         raise ValueError(
             "split_fractions differ from training; analysing would leak training data into test"

@@ -13,6 +13,13 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   CSE-CIC-IDS2018 (download, layout, truncation warning), full command reference, reproduction and
   responsible-use sections. The long results record moved unchanged to docs/results-full.md.
 
+### Fixed
+- Corrected-label transfer per-category recall recorded (the loss is mainly Bot), with an untested hypothesis.
+- Analysis, adaptive evasion and holdout-style re-scoring now refuse a corrected-label model trained with a different
+  rule-set version, and a model trained with different `exclude_features`. Before, a model trained under ruleset 1
+  could be evaluated on ruleset 2 labels and report `verified: true`, mixing rule sets; the training manifest now
+  records `ruleset_version` and `exclude_features`.
+
 ### Added
 - Adaptive-evasion reports carry `benign_by_combination` (the benign flagged rate for each single reshaping), and
   the results page shows it; corrected-label seed, adaptive and transfer results recorded (ruleset 1).
