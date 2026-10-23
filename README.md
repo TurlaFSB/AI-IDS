@@ -168,11 +168,12 @@ ai-ids family --source-data data/raw/TrafficLabelling --target-data data/raw/cse
 | `ai-ids train` | Load, clean, split, train, calibrate, evaluate and save detectors |
 | `ai-ids seeds` | Repeat training over several seeds and report the spread |
 | `ai-ids analyze` | Re-run evaluation diagnostics (per-day FPR, host concentration, drift) on a saved model |
-| `ai-ids holdout` | Leave-one-attack-family-out generalisation test (slow) |
+| `ai-ids holdout` | Leave-one-attack-family-out generalisation test, optionally with `--group` to hold out related families together (slow; ADR 0015) |
 | `ai-ids adaptive` | Per-flow best-of-grid evasion adversary against a saved model (ADR 0012) |
 | `ai-ids transfer` | Score another dataset with a saved model and a fixed threshold; compare with oracle and local calibration (ADR 0011) |
 | `ai-ids family` | Descriptive comparison of one attack family across two datasets |
 | `ai-ids relabel` | Apply the corrected CICIDS2017 labels and report what changed (ADR 0013) |
+| `ai-ids relabel-check` | Audit the corrected-label rules against the authors' labelling script, which is read as data and never run (ADR 0013) |
 | `ai-ids report-html` | Build one self-contained HTML results page from saved reports (no scripts, no network; ADR 0014) |
 | `ai-ids serve` | Run the scoring service and dashboard |
 | `ai-ids replay` | Replay recorded or synthetic flows into a running service |
@@ -188,6 +189,9 @@ with metrics, operating points, per-attack recall, per-day FPR, drift, latency, 
 the git commit.
 
 ## Reproducing the results
+
+The full recipe, times and what is deterministic are in [docs/reproduce.md](docs/reproduce.md). A pipeline check
+that needs no download runs in about a minute: `./scripts/reproduce_synthetic.sh` (also run by CI).
 
 ```bash
 ai-ids train --data data/raw/TrafficLabelling --out models/robust3 --config configs/robustness.yaml
@@ -297,8 +301,9 @@ may contain IP addresses) in memory only.
   "Troubleshooting an Intrusion Detection Dataset: the CICIDS2017 Case Study", IEEE SPW 2021).
   Corrected-label retraining (ADR 0013) is recorded in
   [docs/results-full.md](docs/results-full.md); the headline findings 1 to 5 use the original labels,
-  the rule port is unchecked against the authors' files, and unseen-family and evasion results have
-  not been repeated on corrected labels.
+  the rule port was audited against the authors' script and corrected (ADR 0013), so those
+  corrected-label numbers come from the earlier ruleset and are being re-run, and unseen-family and
+  evasion results have not been repeated on corrected labels.
 - Attacks come from a small set of tools, so models learn tool signatures; the
   leave-one-family-out test quantifies how little carries over to unseen families.
 - Very small classes (Heartbleed, Infiltration, and the web attacks under corrected labels) have
@@ -341,6 +346,7 @@ tests/             unit and end-to-end tests
 | Document | Purpose |
 |---|---|
 | [Talk outline](docs/talk-outline.md) | Ten-minute presentation structure with hard questions |
+| [Reproducing the results](docs/reproduce.md) | Synthetic pipeline check, real-data runs, timings, determinism |
 | [Results at a glance](docs/results-summary.md) | One-page summary of findings and what is not shown |
 | [Full results record](docs/results-full.md) | Every run, including failed designs and negative results |
 | [Architecture](docs/architecture.md) | Components, data flow, target design |
@@ -368,7 +374,7 @@ tests/             unit and end-to-end tests
 ## Roadmap
 
 1. Retrain on the corrected labels and compare false-positive rate, host concentration and the Bot
-   test set with the original-label run; validate the label port against the authors' own files.
+   test set with the original-label run; re-run the corrected-label experiments under the audited rules (ADR 0013).
 2. Packet-level evasion evaluation (needs raw captures and the original flow extractor).
 3. Untruncated CSE-CIC-IDS2018 flows built from the raw captures.
 4. Live flow capture through the scoring service; threat-intelligence enrichment.

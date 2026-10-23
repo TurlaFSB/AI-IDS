@@ -2,11 +2,13 @@
 
 The labels shipped with CICIDS2017 contain errors (Engelen, Rimmer and Joosen, "Troubleshooting an
 Intrusion Detection Dataset: the CICIDS2017 Case Study", IEEE SPW 2021; Liu, Engelen, Lynar, Essam
-and Joosen, "Error Prevalence in NIDS datasets", IEEE CNS 2022). Their published labelling scripts
-define each attack by a time window, attacker and victim addresses, ports, and a few packet-level
-conditions. This module re-implements those *rules* (facts about the capture: windows, addresses,
-ports) as data, so they can be applied to the flows we already have. The code is our own and is not
-a copy of theirs.
+and Joosen, "Error Prevalence in NIDS datasets", IEEE CNS 2022). Their published labelling
+script defines each attack by a time window, attacker and victim addresses, ports, and a few
+packet-level conditions. This module re-implements those *rules* (facts about the capture: windows,
+addresses, ports) as data, so they can be applied to the flows we already have. The code is our own
+and is not a copy of theirs. `ai_ids.data.rulecheck` audits the table below against the authors'
+script (ADR 0013); version 1 of the table was written before that script could be read and the
+audit found and fixed several deviations (see RULESET_VERSION).
 
 What this is and is not:
 - It re-labels the original CICFlowMeter flows. The authors also fixed the flow extractor, which
@@ -18,8 +20,12 @@ What this is and is not:
   are labelled as such and dropped by the loader, because they are neither clean benign traffic nor
   an attack to be detected. The number dropped is reported.
 - The attack windows are UTC. CICIDS2017 timestamps are local time, UTC-3, so windows are shifted.
-- The port of the rules was written from the published scripts and has not been checked against the
-  authors' corrected CSVs; the report's old-versus-new label table is the check to inspect.
+- The rules are audited against the authors' script, not against their corrected CSVs, which come
+  from their own repaired flow extractor and cannot be matched flow by flow to the original files.
+  Deliberate adaptations: reply-direction (mirrored) rules for flows the original extractor split,
+  and window starts rounded down to the minute because original timestamps have minute resolution.
+  Packet-count conditions come from the authors' extractor and may not mean the same on the
+  original flows.
 """
 
 from __future__ import annotations
@@ -37,6 +43,14 @@ from ai_ids.labels import normalize_label
 BoolArray = NDArray[np.bool_]
 Columns = Mapping[str, NDArray[Any]]
 Predicate = Callable[[Columns], BoolArray]
+
+# Bump when a rule changes, so every report says which rules produced its labels.
+#   1: first port, written before the authors' script could be read.
+#   2: audited against the authors' CNS 2022 labelling script (docs/adr/0013): removed two
+#      attempted-flow rules for FTP-Patator, added source port 50133 and the exact window to
+#      the first infiltration scan, merged the Friday port-scan round 2 rules, and used the
+#      script's 5/5 packet counts for the brute-force artefact flows.
+RULESET_VERSION = 2
 
 UTC_OFFSET = pd.Timedelta(hours=3)  # capture clocks were UTC-3 (New Brunswick, summer)
 ATTEMPTED_SUFFIX = " - Attempted"
@@ -159,30 +173,6 @@ def _tuesday() -> list[Rule]:
             flip=True,
         ),
         Rule("FTP-Patator" + ATTEMPTED_SUFFIX, *ftp, att, web, src_ports=(52108,), dst_ports=(21,)),
-        Rule(
-            "FTP-Patator" + ATTEMPTED_SUFFIX,
-            *ftp,
-            att,
-            web,
-            dst_ports=(21,),
-            where=lambda c: (
-                (c["source_port"] != 52108)
-                & (c["total_length_of_bwd_packets"] == 0)
-                & (c["total_length_of_fwd_packets"] > 0)
-            ),
-        ),
-        Rule(
-            "FTP-Patator" + ATTEMPTED_SUFFIX,
-            *ftp,
-            web,
-            att,
-            src_ports=(21,),
-            where=lambda c: (
-                (c["destination_port"] != 52108)
-                & (c["total_length_of_fwd_packets"] == 0)
-                & (c["total_length_of_bwd_packets"] > 0)
-            ),
-        ),
         Rule("SSH-Patator", *ssh, att, web, dst_ports=(22,), flip=True),
         Rule(
             "SSH-Patator" + ATTEMPTED_SUFFIX,
@@ -483,8 +473,8 @@ def _thursday_web() -> list[Rule]:
             where=lambda c: (
                 (c["total_length_of_fwd_packets"] > 0)
                 & (c["source_port"] != 44464)
-                & (c["total_fwd_packets"] == 4)
-                & (c["total_backward_packets"] == 4)
+                & (c["total_fwd_packets"] == 5)
+                & (c["total_backward_packets"] == 5)
             ),
         ),
         Rule(
@@ -496,8 +486,8 @@ def _thursday_web() -> list[Rule]:
             where=lambda c: (
                 (c["total_length_of_bwd_packets"] > 0)
                 & (c["destination_port"] != 44464)
-                & (c["total_backward_packets"] == 4)
-                & (c["total_fwd_packets"] == 4)
+                & (c["total_backward_packets"] == 5)
+                & (c["total_fwd_packets"] == 5)
             ),
         ),
         Rule(
@@ -566,16 +556,9 @@ def _thursday_web() -> list[Rule]:
             *sql_pre,
             att,
             web,
+            src_ports=sql_ports,
             dst_ports=(80,),
-            where=lambda c: np.isin(c["source_port"], sql_ports),
-        ),
-        Rule(
-            sql_label + ATTEMPTED_SUFFIX,
-            *sql_pre,
-            web,
-            att,
-            src_ports=(80,),
-            where=lambda c: np.isin(c["destination_port"], sql_ports),
+            flip=True,
         ),
         Rule(
             sql_label,
@@ -639,11 +622,11 @@ def _thursday_infiltration() -> list[Rule]:
         # The compromised hosts then scan the internal network.
         Rule(
             "Infiltration - Portscan",
-            1499360400000000000,
-            1499360460000000000,
+            1499360431706755000,
+            1499360445728887000,
             _ips(ATTACKER),
             _ips(HEARTBLEED_VICTIM),
-            where=lambda c: c["source_port"] == 50122,
+            src_ports=(50122, 50133),
         ),
         Rule(
             "Infiltration - Portscan",
@@ -692,15 +675,7 @@ def _friday_portscan() -> list[Rule]:
     att, web = _ips(ATTACKER), _ips(WEB_SERVER)
     return [
         Rule("Portscan", 1499446532117090000, 1499447948582083000, att, web, flip=True),
-        Rule(
-            "Portscan",
-            1499449860000000000,
-            1499449919000000000,
-            att,
-            web,
-            where=lambda c: ~np.isin(c["source_port"], (0, 35952, 35954, 35956, 35958)),
-        ),
-        Rule("Portscan", 1499449920000000000, 1499451841699238000, att, web),
+        Rule("Portscan", 1499449905450532000, 1499451841699238000, att, web),
         *_bot_rules(),
     ]
 

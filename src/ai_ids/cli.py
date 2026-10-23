@@ -23,10 +23,11 @@ from ai_ids.data.loader import (
     normalize_columns,
 )
 from ai_ids.data.relabel import summarise_changes
+from ai_ids.data.rulecheck import audit_file
 from ai_ids.data.split import chronological_split
 from ai_ids.data.synthetic import generate_flows
 from ai_ids.evaluation.familystudy import run_family_study
-from ai_ids.evaluation.holdout import run_holdout
+from ai_ids.evaluation.holdout import parse_groups, run_holdout
 from ai_ids.evaluation.seeds import run_seed_study
 from ai_ids.evaluation.transfer import prepare_target, run_transfer
 from ai_ids.logging_config import configure_logging
@@ -62,6 +63,13 @@ def _build_parser() -> argparse.ArgumentParser:
     holdout.add_argument("--data", type=Path, required=True, help="CSV file or directory")
     holdout.add_argument("--out", type=Path, required=True, help="output JSON file")
     holdout.add_argument("--config", type=Path, help="YAML experiment config")
+    holdout.add_argument(
+        "--group",
+        action="append",
+        default=[],
+        metavar="CAT,CAT",
+        help="hold out these categories together (repeatable); default is one family at a time",
+    )
 
     seeds = sub.add_parser("seeds", help="repeat training over several seeds and report the spread")
     seeds.add_argument("--data", type=Path, required=True, help="CSV file or directory")
@@ -155,6 +163,12 @@ def _build_parser() -> argparse.ArgumentParser:
     checksum = sub.add_parser("checksum", help="print SHA-256 digests of dataset files")
     checksum.add_argument("path", type=Path)
 
+    check = sub.add_parser(
+        "relabel-check",
+        help="audit the corrected-label rules against the authors' script (read, never run)",
+    )
+    check.add_argument("--notebook", type=Path, required=True, help="the authors' .ipynb or .py")
+    check.add_argument("--out", type=Path, required=True, help="output JSON file")
     page = sub.add_parser(
         "report-html",
         help="build one self-contained HTML results page from saved JSON reports",
@@ -265,7 +279,13 @@ def main(argv: Sequence[str] | None = None) -> int:
     if args.command == "holdout":
         config = TrainConfig.from_yaml(args.config) if args.config else TrainConfig()
         split, features, _ = prepare_data(args.data, config)
-        holdout_report = run_holdout(split, features, config)
+        try:
+            holdout_report = run_holdout(
+                split, features, config, parse_groups(args.group) if args.group else None
+            )
+        except ValueError as error:
+            print(f"holdout: {error}", file=sys.stderr)
+            return 2
         args.out.parent.mkdir(parents=True, exist_ok=True)
         args.out.write_text(json.dumps(holdout_report, indent=2) + "\n")
         for family, result in holdout_report["families"].items():
@@ -273,6 +293,10 @@ def main(argv: Sequence[str] | None = None) -> int:
                 f"{family}: recall_unseen={result['recall_unseen']:.4f} "
                 f"fpr={result['false_positive_rate']:.4f} support={result['test_support']}"
             )
+            for member, detail in result.get("members", {}).items():
+                recall = detail["recall_unseen"]
+                shown = "n/a" if recall is None else f"{recall:.4f}"
+                print(f"  {member}: recall_unseen={shown} support={detail['test_support']}")
         return 0
 
     if args.command == "seeds":
@@ -456,6 +480,25 @@ def main(argv: Sequence[str] | None = None) -> int:
         for row in comparison.get("strongest", [])[:8]:
             auc_pair = f"auc source {row['auc_source']:.3f} target {row['auc_target']:.3f}"
             print(f"  {row['feature']}: {auc_pair}")
+        return 0
+
+    if args.command == "relabel-check":
+        try:
+            audit = audit_file(args.notebook)
+        except (OSError, ValueError, SyntaxError, KeyError) as error:
+            print(f"relabel-check: {error}", file=sys.stderr)
+            return 2
+        args.out.parent.mkdir(parents=True, exist_ok=True)
+        args.out.write_text(json.dumps(audit, indent=2) + "\n")
+        totals = audit["totals"]
+        print(
+            f"stated rules {totals['stated']}: matched literally {totals['matched']}, "
+            f"not in the port {totals['stated_only']}; port-only rules {totals['ours_only']}"
+        )
+        for day, detail in audit["days"].items():
+            for item in detail["stated_only"]:
+                ports = item["src_ports"] or item["dst_ports"] or ""
+                print(f"  not in port ({day}): {item['label']} {ports}")
         return 0
 
     if args.command == "report-html":

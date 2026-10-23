@@ -83,8 +83,8 @@ recall varies by ±0.0003 and false-positive rate by ±0.007; the augmented grad
 - A clean cross-dataset benchmark: the three CSE-CIC-IDS2018 files used are truncated at Excel's row
   limit (1,048,575 rows each), so the 2018 attack mix is partial.
 - Corrected labels: one retraining (Random Forest false-positive rate 1.3%, recall 0.9997, Bot
-  recall 0.99) uses rules ported from the published timelines; the port is unchecked against the
-  authors' files, the test set is easier as well as cleaner, and dropping the destination
+  recall 0.99) uses rules ported from the published timelines (ruleset 1; audited against the
+  authors' script on 2026-10-23, five deviations fixed, re-run pending), the test set is easier as well as cleaner, and dropping the destination
   port (which the rules also use) changes recall by under 0.001, and evasion results have not been
   repeated on it.
 - Seed spread for the evasion results or for fusion.

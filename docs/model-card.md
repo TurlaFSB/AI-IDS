@@ -245,7 +245,7 @@ distinct destination ports on 11 hosts, 2017-07-06 15:10 to 15:45) and `192.168.
 excluded 0.019%. These are the same hosts and scan-like patterns that drive the Random Forest's
 false positives, so the augmented model's cost is concentrated on the attack-adjacent traffic and
 is not a general loss on ordinary benign traffic. This does **not** by itself show those flows are truly
-attacks (the rule-based corrected labels in ADR 0013 classify them as attacks, but that port is unchecked against the authors' files), and excluding hosts after seeing where
+attacks (the rule-based corrected labels in ADR 0013 classify them as attacks, but that port was audited and corrected after these results, see ADR 0013), and excluding hosts after seeing where
 errors fall is a sensitivity analysis, not a performance claim.
 
 ## Uncertainty and fusion (method)

@@ -11,7 +11,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
-from ai_ids.data.relabel import label_changes, relabel_frame, rules_for
+from ai_ids.data.relabel import RULESET_VERSION, label_changes, relabel_frame, rules_for
 from ai_ids.labels import resolve
 
 logger = logging.getLogger(__name__)
@@ -222,6 +222,7 @@ def _apply_corrected_labels(
     new_labels, attempted = relabel_frame(frame, rules, stamps, LABEL)
     summary: dict[str, Any] = {
         "file": name,
+        "ruleset": RULESET_VERSION,
         "flows": len(frame),
         "attempted_flows_dropped": int(attempted.sum()),
         "label_changes": label_changes(

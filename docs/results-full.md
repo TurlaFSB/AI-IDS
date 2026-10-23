@@ -222,7 +222,9 @@ each class, so those flows were probably the late, "attempted" ones, which would
 Bot; this is consistent with the counts but not confirmed until a model is evaluated on the corrected
 labels. In the Thursday afternoon file 65,634 benign flows become `Infiltration - Portscan`, 4 become
 `Infiltration` and 30 are dropped; of the 36 original Infiltration flows 35 stay. These counts are
-what the port produces; whether they match the authors' own corrected CSVs has not been checked.
+what the port produces (ruleset version 1; an audit against the authors' script on 2026-10-23 found and
+fixed five deviations, see ADR 0013, so these counts and every corrected-label result below are to be
+re-run under ruleset version 2).
 
 **First retraining on the corrected labels** (`ai-ids train --config configs/corrected.yaml`, seed 42,
 all eight files). After cleaning: 2,485,849 flows (288,602 unlabelled rows and 245,256 duplicates
@@ -259,8 +261,8 @@ on the corrected labels. (3) Web attacks have only 74, 18 and 25 flows in total,
 rests on a handful of test flows. (4) The label rules use time windows, addresses and ports from the
 published timelines, and destination port is a model feature, so some of the gain could be the
 model learning the rules rather than the traffic; a feature-ablation check has not been run. (5) One
-seed, no bootstrap intervals read out yet, and the port of the rules is still unchecked against the
-authors' corrected files.
+seed, no bootstrap intervals read out yet, and the rules are ruleset version 1, to be re-run after the
+audit fixes described in ADR 0013.
 
 **Destination-port ablation** (`ai-ids train --config configs/ablation.yaml`: the corrected-label run with
 `destination_port` excluded; 77 features instead of 78; same split, seed 42 and thresholds). The label

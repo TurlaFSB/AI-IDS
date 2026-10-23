@@ -7,11 +7,18 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 
 ### Changed
+- Corrected-label rules audited against the authors' script (ADR 0013): five deviations fixed (ruleset
+  version 2); earlier corrected-label results used version 1 and are to be re-run.
 - README restructured for readers: findings table up front, dataset setup for CICIDS2017 and
   CSE-CIC-IDS2018 (download, layout, truncation warning), full command reference, reproduction and
   responsible-use sections. The long results record moved unchanged to docs/results-full.md.
 
 ### Added
+- `scripts/reproduce_synthetic.sh` and docs/reproduce.md: end-to-end run on synthetic data that fails unless two
+  seeded runs agree exactly; run by CI.
+- `ai-ids relabel-check`: reads the authors' labelling script as data and compares its rules with the port.
+- `ai-ids holdout --group` and `holdout.groups`: hold out related attack families together so no close
+  relative remains in training (ADR 0015); per-member recall is reported inside each group.
 - `ai-ids report-html` (ADR 0014): one self-contained, script-free HTML results page built from saved
   reports, with a hash-pinned Content Security Policy, escaped values, intervals, run comparison,
   per-category supports, false-positive concentration, adaptive frontier, holdout and transfer views.
