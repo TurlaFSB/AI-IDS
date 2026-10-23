@@ -393,6 +393,90 @@ with attempted flows kept as attacks, or compare 2018 Bot payload sizes with the
 cause is otherwise unidentified. One model, one sample, one seed, ruleset 1; training labels are the only intended difference.
 Near-perfect in-distribution recall is not evidence of generalisation.
 
+## Corrected labels under the audited rules (ruleset 2)
+
+Everything above on the corrected labels used ruleset 1; the audit in ADR 0013 fixed five deviations from
+the authors' script (ruleset 2), and the experiments below were re-run under it on 2026-10-23, seed 42,
+with the training manifest recording `ruleset_version: 2`. Ruleset 1 results are kept above as history and
+are superseded by these. Under ruleset 2 the cleaned dataset has 2,487,899 flows (ruleset 1: 2,485,849;
+the difference is flows the two extra FTP-Patator "attempted" rules had dropped, which also raises the
+brute-force test support from 1,740 to 2,234), 247,258 duplicates removed, 1,492,734 training flows.
+
+**Detectors** (`ai-ids train --config configs/corrected.yaml`, test split, 1% validation target; ruleset 1
+in brackets):
+
+| Model | Recall | False-positive rate | Precision | PR-AUC | Macro recall |
+|---|---|---|---|---|---|
+| Random Forest | 0.9996 (0.9997) | 0.0129 (0.0132) | 0.9478 | 0.9997 | 0.9988 (0.9990) |
+| Random Forest, evasion-aware | 0.9997 (0.9996) | 0.0133 (0.0130) | 0.9464 | 0.9997 | 0.9803 (0.9803) |
+| Gradient boosting | 0.9996 (0.9997) | 0.0102 (0.0111) | 0.9584 | 0.9978 | 0.9828 (0.9998) |
+| Gradient boosting, evasion-aware | 0.9993 (0.9994) | 0.0104 (0.0109) | 0.9578 | 0.9990 | 0.9888 (0.9787) |
+| Fusion, mean | 0.9994 (0.9994) | 0.0119 (0.0120) | 0.9517 | 0.9997 | 0.9889 (0.9790) |
+| Fusion, max | 0.9997 (0.9997) | 0.0141 (0.0142) | 0.9432 | 0.9997 | 0.9900 (0.9809) |
+
+Recall and false-positive rates are essentially unchanged by the rule fixes; macro recall moves by up to
+0.017 in either direction because it averages tiny classes (see the ablation note on supports).
+Per-category recall under ruleset 2 has not been read yet.
+
+**Grouped leave-out** (`ai-ids holdout --group ...`, Random Forest, groups chosen from domain
+knowledge before running, ADR 0015):
+
+| Held-out group | Recall on the unseen group | Members | False-positive rate | Test flows |
+|---|---|---|---|---|
+| DoS + DDoS | 0.706 | DoS 0.769, DDoS 0.638 | 0.0097 | 82,948 |
+| Port scan + infiltration | 0.866 | port scan 0.853, infiltration 0.894 | 0.0096 | 32,797 |
+| Botnet | 0.514 | | 0.0132 | 366 |
+| Brute force | 0.675 | | 0.0102 | 2,234 |
+| Web attacks | 0.188 | | 0.0080 | 32 |
+
+Pooled over 118,377 flows the unseen recall is 0.749; the unweighted mean over the five groups is 0.590
+(computed from the table). Holding out a family together with its relative lowers recall against holding
+it out alone under ruleset 1 (DoS 0.956 to 0.769, DDoS 0.731 to 0.638, port scan 0.990 to 0.853,
+infiltration 0.965 to 0.894), which confirms that the single-family numbers were inflated by close
+relatives in training. Even grouped, the scan-like and flood-like families keep 0.7 to 0.87 recall, while
+botnet, brute force and web attacks stay low (0.51, 0.67, 0.19 on 32 flows). The single-family test
+under ruleset 2 did not run (below) and is not recorded.
+
+**Destination-port ablation** (`configs/ablation.yaml`, ruleset 2; with the port in brackets):
+
+| Model | Recall | False-positive rate | Macro recall |
+|---|---|---|---|
+| Random Forest | 0.9995 (0.9996) | 0.0112 (0.0129) | 0.9977 (0.9988) |
+| Random Forest, evasion-aware | 0.9996 (0.9997) | 0.0109 (0.0133) | 0.9797 (0.9803) |
+| Gradient boosting | 0.9992 (0.9996) | 0.0084 (0.0102) | 0.9454 (0.9828) |
+| Gradient boosting, evasion-aware | 0.9992 (0.9993) | 0.0086 (0.0104) | 0.9656 (0.9888) |
+| Fusion, mean | 0.9994 (0.9994) | 0.0086 (0.0119) | 0.9700 (0.9889) |
+| Fusion, max | 0.9995 (0.9997) | 0.0116 (0.0141) | 0.9792 (0.9900) |
+
+Same conclusion as under ruleset 1: removing the port changes recall by at most 0.0004 and, if anything,
+lowers the false-positive rate; macro recall falls for gradient boosting, as before on classes with a
+handful of test flows.
+
+**Adaptive evasion** (evasion-aware Random Forest, ruleset 2): clean recall 0.9999, recall against the
+per-flow adversary 0.9988, and **81.5% of benign flows flagged under at least one reshaping against 1.43%
+unperturbed**. The ruleset 1 reading stands: this is not robustness, the detector flags reshaped traffic
+wholesale. The per-combination table (`benign_by_combination`) is in the report and has not been read.
+
+**Transfer to CSE-CIC-IDS2018** (gradient boosting, ruleset 2; same seeded 1,000,000-flow sample; ruleset 1
+in brackets):
+
+| Operating point | Recall | False-positive rate | Precision |
+|---|---|---|---|
+| Stored threshold | 0.0991 (0.9058) | 0.0606 (0.0639) | 0.1197 (0.5413) |
+| Oracle threshold, 1% target | 0.0494 (0.0500) | 0.0098 (0.0100) | 0.2965 (0.2940) |
+| Local calibration, later flows | 0.0497 (0.0506) | 0.0111 (0.0109) | 0.3075 (0.3148) |
+
+PR-AUC on 2018 is 0.382 (ruleset 1: 0.645; original-label model: 0.898). Two conclusions. The negative
+transfer finding holds and is worse: recalibration cannot rescue the ranking (recall 0.05 at 1% false
+positives in both runs). And the behaviour is **fragile**: five small rule fixes, with the same seed, moved the
+stored-threshold recall from 0.91 to 0.10 and PR-AUC from 0.645 to 0.382, so a corrected-label model's
+cross-dataset behaviour depends heavily on label details that do not change in-distribution results at all.
+Whether that is label sensitivity or ordinary run-to-run variance in how a boosted model extrapolates to a
+shifted distribution has not been separated (it needs several seeds on the transfer test).
+
+**Not recorded:** the single-family leave-one-out under ruleset 2 stopped with a memory error on the 16 GB
+laptop while loading (1.63 GiB allocation), with no code fault involved; it is to be re-run.
+
 ## Attack-family comparison across datasets
 
 `ai-ids family --source-data <2017> --target-data <2018> --category botnet --model-dir ...` compares
