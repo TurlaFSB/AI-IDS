@@ -18,6 +18,13 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from ai_ids.reporting.figures import (
+    FIGURE_CSS,
+    figure_benign_reshaping,
+    figure_concentration,
+    figure_holdout,
+)
+
 MAX_REPORT_BYTES = 64 * 1024 * 1024
 SMALL_SUPPORT = 30
 
@@ -55,7 +62,7 @@ footer{margin-top:48px;color:var(--muted);font-size:.85rem}
 def _bar_css() -> str:
     widths = "".join(f".w{i}{{width:{i * 0.6:.1f}%}}" for i in range(101))
     heat = "".join(f".h{i}{{background:rgba(var(--cell),{i / 10 * 0.75:.3f})}}" for i in range(11))
-    return _CSS_TEMPLATE + widths + heat
+    return _CSS_TEMPLATE + widths + heat + FIGURE_CSS
 
 
 @dataclass(frozen=True)
@@ -514,6 +521,22 @@ def _transfer(items: Sequence[Labelled]) -> str:
     return "".join(out) if len(out) > 1 else ""
 
 
+def _figures(
+    runs: Sequence[Labelled], adaptive: Sequence[Labelled], holdout: Sequence[Labelled]
+) -> str:
+    parts = []
+    if runs:
+        parts.append(figure_concentration([(r.label, r.data) for r in runs]))
+    for item in adaptive:
+        figure = figure_benign_reshaping(item.data, runs[0].data if runs else None)
+        if figure:
+            parts.append(figure)
+            break
+    if holdout:
+        parts.append(figure_holdout([(h.label, h.data) for h in holdout]))
+    return "".join(parts)
+
+
 def build_page(
     *,
     title: str,
@@ -535,6 +558,9 @@ def build_page(
     )
     for note in notes:
         body.append(f'<p class="note">{esc(note)}</p>')
+    figures = _figures(runs, adaptive, holdout)
+    if figures:
+        body.append("<h2>Figures</h2>" + figures)
     if runs:
         body.append("<h2>Runs</h2>" + _provenance(runs))
         body.append("<h2>Headline results</h2>" + "".join(_headline(r) for r in runs))

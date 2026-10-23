@@ -1,81 +1,88 @@
 # Talk outline: ten minutes
 
-Working title: **"99% recall, 8% false alarms, and a defence that cheated: what a network IDS
-learns from an honest evaluation."** Every figure comes from a run recorded in the
-[README](../README.md) and the [model card](model-card.md); see
-[results-summary.md](results-summary.md) for the one-page version. Say "feature-space" and "one
-dataset pair" out loud wherever they apply.
+Working title: **"Fix the labels and the benchmark stops being easy: what a network IDS learns from an
+honest evaluation."** Every figure comes from a run recorded in
+[results-full.md](results-full.md); [results-summary.md](results-summary.md) is the one-page version
+and `ai-ids report-html` builds the figures. Say "feature-space", "one dataset pair" and "ruleset 2"
+out loud wherever they apply.
 
 ## Arc
-A familiar benchmark number is hiding three problems. Each one is measured, not asserted, and one
-of our own fixes failed its control and is shown.
+A familiar benchmark number hides three problems. Each is measured, not asserted. Correcting the labels
+fixes the first, exposes the other two, and one of our own fixes failed its control and one of our own
+rule sets had errors that we found by reading the source; both are shown.
 
 ## Slides (about 10 minutes)
 
 1. **The claim everyone makes (0:45).** Random Forest on CICIDS2017: recall 0.990, ROC-AUC 0.998.
-   "Looks solved." Then: the split is chronological and thresholds target a 1% false-positive rate.
-   Setup in one line: 2.52M flows after removing 308k duplicates, per-class time split.
-2. **The first crack: the false-alarm budget did not hold (1:15).** Target 1%, measured 8.1%
-   (interval 4% to 12%). 98.6% of false positives come from two hosts doing scan-like traffic;
-   excluding them gives 0.14% (sensitivity analysis, not a result). The evidence points to
-   mislabelled attack-adjacent traffic; we cannot prove it without verified labels. Lesson: report
-   intervals and where errors concentrate, not one rate.
-3. **The second crack: unseen attacks (1:00).** Leave-one-family-out recall 0.27 pooled against
-   0.99 on known attacks; botnet 0.00. In-distribution recall mostly measures recognising the
-   benchmark's tools.
-4. **Evasion in feature space (1:15).** Padding packets cut Random Forest recall from 0.99 to 0.51.
-   State the limit now: feature-space, one seed, modelled perturbations only. (Held for slide 5:
-   against a per-flow adaptive adversary the plain Random Forest falls to 0.52, the evasion-aware one
-   to 0.90.)
-5. **The centrepiece: the defence that cheated (2:15).** Train on padded attack copies: recall
-   under padding rises to 1.000. The benign control (pad benign flows the same way) shows 24%,
-   50% and 70% of padded benign flows flagged: the model learned "padded means attack". Redesign:
-   perturb benign and attack flows alike. Result: recall under padding 0.96 to 0.99, benign flags
-   not above the clean rate, no loss on clean data. Then the adaptive test: a per-flow adversary
-   choosing the best of 30 reshapings still takes about ten points off the evasion-aware model
-   (0.99 to 0.90), against 0.99 to 0.52 for the plain one. Message: every robustness number needs
-   a control that could have exposed a shortcut. Keep the failed design in the repo.
-6. **Does it travel? Cross-dataset (1:45).** Models trained on 2017, scored on three 2018 days with
-   the 2017 threshold fixed. Recall 0.085 (Random Forest) and 0.049 (gradient boosting) at under
-   0.1% false positives: almost nothing alerts. Split the cause: gradient boosting ranks well
-   (ROC-AUC 0.988) and a threshold set on the first 150,000 benign flows of the new network gives
-   recall 0.830 at 0.26% false positives; the Random Forest's ranking is the problem (recall 0.127
-   even with the best threshold). Takeaway: ship a recalibration step, and prefer scores that
-   rank. Caveats on the slide: assumes a clean benign window, one model, one sample, 74% of the
-   attacks are Bot, and the 2018 files are truncated at Excel's row limit (1,048,575 rows each).
-7. **Where it still fails (0:45).** DoS reaches only about 0.48 on 2018 for both models whatever
-   the threshold. Bot has recall 0 at the threshold on 2017 yet ranks above most benign traffic
-   (AUC 0.86 to 0.90); on 2018 gradient boosting ranks it almost perfectly (recall 0.956 with the
-   local threshold) while the Random Forest calls all of it benign. The two datasets disagree on what
-   separates Bot, so the 0.956 is not evidence of general Bot detection. The aggregate adaptive
-   figure hides web attacks falling from 0.97 to 0.02 recall.
-8. **What we built so it is checkable (0:45).** Hash-locked dependencies, SHA-pinned CI, signed and
-   digest-checked model artifacts, a scoring service with a dashboard (ASVS L2 self-assessment,
-   not an independent one), 170+ tests. One screenshot of the dashboard, labelled synthetic data.
-9. **Take-aways and what we did not show (0:45).** Three rules: report intervals and error
-   concentration; put a control next to every robustness claim; test on a second dataset with the
-   threshold fixed, then show recalibration separately. Not shown: live traffic, packet-level or
-   adaptive attackers, corrected labels.
+   "Looks solved." Setup in one line: chronological per-class split, alert threshold calibrated for a
+   1% false-positive rate, 2.5M flows after removing duplicates.
+2. **The first crack: the false-alarm budget did not hold (1:00).** Target 1%, measured 8.1% (interval
+   4% to 12%). 98.6% of false positives come from two hosts doing scan-like traffic. Bot recall is 0.
+   Hypothesis: label noise. Lesson: report intervals and where errors concentrate.
+3. **Testing the hypothesis: corrected labels, and our own mistake (2:15).** Re-implement the published
+   attack timelines as rules. Then audit our rules against the authors' public labelling script, read as
+   data and never run (`ai-ids relabel-check`): 51 rules, first port deviated in five places (a missing
+   source port, a window that ran a minute long, an extra port exclusion, two extra "attempted" rules,
+   packet counts 4/4 for 5/5). Fixed; every report now records the ruleset and analysis refuses to
+   mix rule sets (a hole in our own check, found and closed the same day). Result under the audited
+   rules: Random Forest false positives 8.1% to 1.29%, recall 0.9996 (seed spread under 0.002, measured under ruleset 1). Figure
+   1: the false positives stop concentrating on two hosts (worst host 11.9% of them, measured under
+   ruleset 1; re-read under ruleset 2 before presenting). Port-ablation
+   control: dropping the destination port, which the rules use, changes recall by under 0.0005, so the
+   gain is not a port shortcut. Caveat on the slide: the corrected test set is easier (99,638 hard
+   "attempted" flows are dropped) and recall of 0.9996 means in-distribution is solved.
+4. **Solved in-distribution, not elsewhere (2:15).** Figure 2: hold families out of training. Singly,
+   pooled unseen recall looks like 0.86; hold out each family *with its relative* (DoS with DDoS, port
+   scan with infiltration) and it is 0.75, DoS falling from 0.96 to 0.77. Botnet 0.51, brute force
+   0.67, web attacks 0.19 (32 flows). Then transfer: train on 2017, score three truncated 2018 days with
+   the threshold fixed. The original-label model ranked 2018 well (PR-AUC 0.90) and recalibrated to
+   recall 0.83; the corrected-label model ranks it worse (PR-AUC 0.38) and no threshold rescues it
+   (recall 0.05 at 1% false positives), and five small rule fixes moved its stored-threshold recall
+   from 0.91 to 0.10: cross-dataset behaviour is fragile. Untested hypothesis: correcting the labels
+   removed the payload-free beacon flows that 2018 Bot resembles.
+5. **Evasion, and the defence that cheated (2:15).** Padding packets cut Random Forest recall from
+   0.99 to 0.51. Train on padded attack copies and recall returns, but the benign control flags 24% to
+   70% of padded benign flows: the model learned "padded means attack"; kept in the repo as a failed
+   design. Redesign: perturb benign and attack alike. Then the same trap, found by the same control:
+   the corrected-label model scores 0.9988 recall against a per-flow adversary, but 81.5% of benign
+   flows are flagged under some reshaping. Figure 3: benign flags stay at 1.4% to 6.8% inside the
+   trained range and jump to 28% to 72% past it. High adaptive recall measured "looks unlike training",
+   not robustness. Feature-space only.
+6. **What we built so it is checkable (0:45).** `scripts/reproduce_synthetic.sh` trains twice and fails
+   unless the runs agree exactly (run by CI), hash-locked dependencies, SHA-pinned CI, digest-checked
+   model artifacts, a scoring service with an ASVS L2 self-assessment (not independent), and a
+   script-free results page with a hash-pinned content-security policy.
+7. **Take-aways and what we did not show (0:30).** Four rules: report intervals and error
+   concentration; audit your labels against their source, then audit your audit; put a control next to
+   every robustness claim; test on a second dataset with the threshold fixed. Not shown: live traffic,
+   packet-level or gradient adversaries, the authors' own corrected CSVs (their extractor differs), an
+   untruncated 2018 set.
 
 ## Hard questions and honest answers
-- *"Is the 8% just label noise?"* Possibly much of it. Two hosts produce 98.6% of it and look like
-  scans, but no verified corrected labels exist here, so we call it supported, not proven.
-- *"Why not deep learning?"* A CPU autoencoder was tried (recall 0.153, false-positive rate 0.074)
-  and an Isolation Forest (recall 0.040); the supervised trees were far better on this data
-  (ADR 0001, 0007). A GPU model is future work.
-- *"Did you tune on the 2018 data?"* No. The threshold was fixed beforehand; the oracle and local
-  calibration points are labelled as what they are, and the local one uses only the earliest
-  benign slice.
-- *"Is the evasion defence adaptive-attacker proof?"* No. It removes one measured weakness in a
-  modelled perturbation family; adaptive and packet-level attacks are not evaluated.
-- *"Single seed?"* Three seeds for the four main detectors: Random Forest recall varies by
-  ±0.0003, augmented gradient boosting by ±0.015. The cross-dataset test is one seed.
+- *"Is your corrected-label port right?"* Audited against the authors' script: all 51 stated rules
+  match literally after five fixes. Not verified: packet-count conditions (their extractor differs
+  from the one that made the data), and agreement with their corrected CSVs, which would need their
+  extractor and the raw captures. Mirrored rules and minute rounding are our adaptations.
+- *"Is 0.9996 recall real?"* It is a measurement on an easier, cleaner test set (hard "attempted" flows
+  dropped); it says nothing about other networks or unseen attacks, which the next slides show.
+- *"Why did transfer get worse after fixing the labels?"* Not established. Seeds do not explain it
+  (spread is tiny in-distribution) but transfer has not been repeated over seeds. Untested hypothesis:
+  the dropped beacon-style flows.
+- *"Is the destination port a shortcut?"* Ablation says no for the large classes; two classes with
+  fewer than a dozen test flows (infiltration, SQL injection) lose recall without it.
+- *"Why not deep learning?"* A CPU autoencoder (recall 0.153) and Isolation Forest (0.040) were far
+  worse on this data (ADR 0001, 0007). A GPU model is future work.
+- *"Is the evasion defence adaptive-attacker proof?"* No. Its high adaptive recall comes with 81.5%
+  benign flags under reshaping. Packet-level and gradient attacks are not evaluated.
+- *"Did you tune on the 2018 data?"* No. The threshold was fixed beforehand; oracle and local
+  calibration are labelled as what they are.
 - *"Fusion?"* Tried; no clear gain (ADR 0009), reported as a negative result.
 
 ## Backup slides
-Per-category recall table; per-hour false-positive rates (35.1% on Thursday 15:00); block-bootstrap
-method; threshold tie plateau (why the 1% target gave 0.26%); the replay demo.
+Per-category recall table; per-hour false-positive rates; block-bootstrap method; the threshold tie
+plateau; the rule audit table (ADR 0013); grouped leave-out members; the replay demo.
 
 ## Before presenting
-Re-run the numbers from a clean checkout and confirm each figure against its report file. The
-The Bot study is recorded; confirm its numbers against `family_bot_rf.json` and `family_bot_hgb.json`.
+Rebuild the figures from the report files (`ai-ids report-html`), confirm each number against them, and
+read the per-category recall of the ruleset 2 model (Bot recall under ruleset 2 is not yet read).
+Re-run the synthetic reproduction from a clean checkout.

@@ -24,6 +24,10 @@ concentrate, the adaptive-adversary frontier, unseen-family recall and transfer 
   every bar, colour never the only encoding, light and dark themes, readable at phone width and in
   print.
 - Small test supports (under 30) are flagged in the category table.
+- **Three inline SVG figures** (benign flows flagged under reshaping with the training range marked,
+  unseen-family recall for single and grouped leave-out, concentration of false positives per run) are
+  built from the same data. Colours come from classes in the hashed style block, never from style
+  attributes; each chart has a title and description and every series is labelled in text.
 
 ## Consequences
 - The page can be published on any static host or attached to a talk; it needs no service to run.

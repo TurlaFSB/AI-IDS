@@ -175,7 +175,7 @@ ai-ids family --source-data data/raw/TrafficLabelling --target-data data/raw/cse
 | `ai-ids family` | Descriptive comparison of one attack family across two datasets |
 | `ai-ids relabel` | Apply the corrected CICIDS2017 labels and report what changed (ADR 0013) |
 | `ai-ids relabel-check` | Audit the corrected-label rules against the authors' labelling script, which is read as data and never run (ADR 0013) |
-| `ai-ids report-html` | Build one self-contained HTML results page from saved reports (no scripts, no network; ADR 0014) |
+| `ai-ids report-html` | Build one self-contained HTML results page, with tables and three figures, from saved reports (no scripts, no network; ADR 0014) |
 | `ai-ids serve` | Run the scoring service and dashboard |
 | `ai-ids replay` | Replay recorded or synthetic flows into a running service |
 | `ai-ids checksum` | Print SHA-256 digests of dataset files |

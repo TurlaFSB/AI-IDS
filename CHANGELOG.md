@@ -24,6 +24,8 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   records `ruleset_version` and `exclude_features`.
 
 ### Added
+- The results page carries three inline SVG figures (benign flags under reshaping with the training range
+  marked, unseen-family recall single versus grouped, false-positive concentration per run).
 - Adaptive-evasion reports carry `benign_by_combination` (the benign flagged rate for each single reshaping), and
   the results page shows it; corrected-label seed, adaptive and transfer results recorded (ruleset 1).
 - `scripts/reproduce_synthetic.sh` and docs/reproduce.md: end-to-end run on synthetic data that fails unless two
