@@ -14,6 +14,9 @@ adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
   responsible-use sections. The long results record moved unchanged to docs/results-full.md.
 
 ### Fixed
+- Corrected-label experiments re-run under the audited rules (ruleset 2) and recorded: detectors, grouped
+  leave-out (pooled 0.75, DoS+DDoS 0.71, port scan+infiltration 0.87), port ablation, adaptive evasion and transfer
+  (PR-AUC 0.38; stored-threshold recall 0.10 against 0.91 under ruleset 1).
 - Corrected-label transfer per-category recall recorded (the loss is mainly Bot), with an untested hypothesis.
 - Analysis, adaptive evasion and holdout-style re-scoring now refuse a corrected-label model trained with a different
   rule-set version, and a model trained with different `exclude_features`. Before, a model trained under ruleset 1
