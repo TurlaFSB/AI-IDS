@@ -515,9 +515,9 @@ joblib==1.6.0 \
     # via
     #   ai-ids (pyproject.toml)
     #   scikit-learn
-jsonpointer==3.4 \
-    --hash=sha256:136e2e3273fd82a1502274f56ec172f331b6a1703d86a1824d503af4d9a96142 \
-    --hash=sha256:e57015ae65af3821c6a3976069860789cf326103f38b22b2178d41d021adad25
+jsonpointer==3.5 \
+    --hash=sha256:81f28618a019cf1b011a6cf757439737972de1ccbeca2e1f86dfb4d661800792 \
+    --hash=sha256:8728c42f6bc07b1436af31600267bdbb1495ac5a61f31d9583ff319ecf7da09c
     # via jsonschema
 jsonschema==4.26.0 \
     --hash=sha256:0c26707e2efad8aa1bfc5b7ce170f3fccc2e4918ff85989ba9ffa9facb2be326 \
